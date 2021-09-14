@@ -13,7 +13,8 @@
         { "index": 10, "name": "uncofirm_reloc", "type": "bool"},
         { "index": 11, "name": "is_charging", "type": "bool"},
         { "index": 12, "name": "battery_percentage", "type": "double"},
-        { "index": 13, "name": "clearMoveTask", "type": "bool"}
+        { "index": 13, "name": "clearMoveTask", "type": "bool"},
+        { "index": 14, "name": "low_battery", "type": "bool"}
       ]
     },
     "robotOrderStatus": {
