@@ -212,7 +212,6 @@ class Data:
         self.unit = dict()
         self.parse_error = False
         self.parsed_flag = False
-        self.line_num = []
         for tmp in self.info:
             if 'unit' in tmp:
                 self.unit[tmp['name']] = tmp['unit']
@@ -272,8 +271,10 @@ class Data:
                 if robot not in self.data:
                     self.data[robot]=dict()
                     self.data[robot]['t'] = []
+                    self.data[robot]['_lm_'] = []
                 values = datas[2].split('|')
                 self.data[robot]['t'].append(rbktimetodate(datas[0]))
+                self.data[robot]['_lm_'].append(num)
                 for tmp in self.info:
                     if 'type' in tmp and 'index' in tmp and 'name' in tmp:
                         tmp_type = type(tmp['name'])
@@ -297,7 +298,6 @@ class Data:
                         if not self.parse_error:
                             logging.error("Error in {} {} ".format(self.type, tmp.keys()))
                             self.parse_error = True
-                self.line_num.append(num)
                 return True
             return False
         return False
@@ -322,7 +322,6 @@ class Data:
                         self.data[robot][key] = other.data[robot][key]
             else:
                 self.data[robot] = other.data[robot]
-        self.line_num.extend(other.line_num)
 
 
 class ErrorLine:
