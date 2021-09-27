@@ -1,32 +1,4 @@
 {
-    "GET": {
-      "type": "GET",
-      "content": [
-        { "index": 0, "name": "connect", "type": "double"},
-        { "index": 2, "name": "reloc", "type": "double"},
-        { "index": 3, "name": "locked", "type": "bool"},
-        { "index": 5, "name": "state", "type": "double"},
-        { "index": 6, "name": "control", "type": "bool"},
-        { "index": 7, "name": "dispatchable", "type": "double"},
-        { "index": 8, "name": "is_connect", "type": "bool"},
-        { "index": 9, "name": "lockedByRDS", "type": "bool"},
-        { "index": 10, "name": "uncofirm_reloc", "type": "bool"},
-        { "index": 11, "name": "is_charging", "type": "bool"},
-        { "index": 12, "name": "battery_percentage", "type": "double"},
-        { "index": 13, "name": "clearMoveTask", "type": "bool"},
-        { "index": 14, "name": "low_battery", "type": "bool"}
-      ]
-    },
-    "robotOrderStatus": {
-        "type": "robotOrderStatus",
-        "content": [
-          { "index": 0, "name": "orderSize", "type": "double"},
-          { "index": 1, "name": "cur_order", "type": "double"},
-          { "index": 2, "name": "type", "type": "double"},
-          { "index": 3, "name": "complete", "type": "bool"},
-          { "index": 4, "name": "order_state", "type": "double"}
-        ]
-    },
     "rTopoPos": {
       "type": "rTopoPos",
       "content": [
@@ -42,5 +14,108 @@
         { "index": 9, "name": "rpercentage", "type": "double"},
         { "index": 10, "name": "status", "type": "double"}
       ]
+    },
+    "GET": {
+      "type": "GET",
+      "content": [
+        { "index": 0, "name": "connect", "type": "double"},
+        { "index": 2, "name": "reloc", "type": "double"},
+        { "index": 3, "name": "locked", "type": "bool"},
+        { "index": 5, "name": "order_state", "type": "double"},
+        { "index": 6, "name": "control", "type": "bool"},
+        { "index": 7, "name": "dispatchable", "type": "double"},
+        { "index": 8, "name": "is_connect", "type": "bool"},
+        { "index": 9, "name": "unlockedByRDS", "type": "double"},
+        { "index": 10, "name": "uncofirm_reloc", "type": "bool"},
+        { "index": 11, "name": "is_charging", "type": "bool"},
+        { "index": 12, "name": "battery_percentage", "type": "double"},
+        { "index": 13, "name": "clearMoveTask", "type": "bool"},
+        { "index": 14, "name": "low_battery", "type": "bool"}
+      ]
+    },
+    "runBlockIn": {
+      "type": "runBlockIn",
+      "content": [
+        { "index": 0, "name": "init", "type": "bool"},
+        { "index": 1, "name": "m_current_order", "type": "double"},
+        { "index": 2, "name": "order_size", "type": "double"}
+      ]
+    },
+    "runBlockOut": {
+      "type": "runBlockOut",
+      "content": [
+        { "index": 0, "name": "state", "type": "double"}
+      ]
+    },
+    "robotState": {
+      "type": "robotState",
+      "content": [
+        { "index": 0, "name": "block_state", "type": "double"},
+        { "index": 1, "name": "complete", "type": "bool"},
+        { "index": 2, "name": "order_state", "type": "double"},
+        { "index": 3, "name": "order_type", "type": "double"}
+      ]
+    },    
+    "Block": {
+      "type": "Block",
+      "content": [
+        { "index": 0, "name": "cur_block_ind", "type": "double"},
+        { "index": 1, "name": "block_size", "type": "double"},
+        { "index": 2, "name": "block_state", "type": "double"},
+        { "index": 3, "name": "excutor_state", "type": "double"},
+        { "index": 4, "name": "task_state", "type": "double"},
+        { "index": 5, "name": "cur_block_state", "type": "double"}
+      ]
+    },
+    "WAITING": {
+      "type": "WAITING",
+      "content": [
+        { "index": 0, "name": "cur_block_ind", "type": "double"},
+        { "index": 1, "name": "block_size", "type": "bool"},
+        { "index": 2, "name": "complete", "type": "double"}
+      ]
+    },
+    "robotOrderStatus": {
+        "type": "robotOrderStatus",
+        "content": [
+          { "index": 0, "name": "orderSize", "type": "double"},
+          { "index": 1, "name": "cur_order", "type": "double"},
+          { "index": 2, "name": "type", "type": "double"},
+          { "index": 3, "name": "complete", "type": "bool"},
+          { "index": 4, "name": "order_state", "type": "double"}
+        ]
+    },
+    "TaskDispatcherIn":{
+      "type": "TaskDispatcherIn",
+      "content": [
+        { "index": 0, "name": "init", "type": "bool"}
+      ]      
+    },
+    "curOrderState":{
+      "type": "curOrderState",
+      "content": [
+        { "index": 0, "name": "cur_block_state", "type": "double"},
+        { "index": 1, "name": "complete", "type": "bool"},
+        { "index": 2, "name": "cur_order_state", "type": "double"},
+        { "index": 3, "name": "robot_state", "type": "bool"},
+        { "index": 5, "name": "order_type", "type": "double"}
+      ]      
+    },
+    "curOrderState2":{
+      "type": "curOrderState2",
+      "content": [
+        { "index": 0, "name": "cur_block_state", "type": "double"},
+        { "index": 1, "name": "current_order", "type": "double"},
+        { "index": 2, "name": "cur_order_state", "type": "double"},
+        { "index": 3, "name": "robot_state", "type": "double"}
+      ]      
+    },
+    "finishState":{
+      "type": "finishState",
+      "content": [
+        { "index": 0, "name": "current_order", "type": "double"},
+        { "index": 1, "name": "order_size", "type": "double"},
+        { "index": 2, "name": "charged_ok_to_next_order", "type": "bool"}
+      ]      
     }
 }

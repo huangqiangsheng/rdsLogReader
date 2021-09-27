@@ -46,7 +46,7 @@ class RobotModel:
         self.head = None
         self.tail = None 
         self.width = None
-        self.pos = [0,0,0]
+        self.pos = [None,None,None]
         self.name = None
         self.cur_arrow = patches.FancyArrow(0, 0, 0.3, 0,
                                             length_includes_head=True,# 增加的长度包含箭头部分
@@ -61,7 +61,14 @@ class RobotModel:
         self.trajectory_next = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='mediumpurple')
         self.robot_text = mtext.Text(0,0, "")
 
-    def updateByPos(self, robot_shape, cross_shape):
+    def updateByPos(self):
+
+        xdata = [-self.tail, -self.tail, self.head, self.head, -self.tail]
+        ydata = [self.width/2, -self.width/2, -self.width/2, self.width/2, self.width/2]
+        robot_shape = np.array([xdata, ydata])
+        xxdata = [-0.05, 0.05, 0.0, 0.0, 0.0]
+        xydata = [0.0, 0.0, 0.0, 0.05, -0.05]
+        cross_shape = np.array([xxdata,xydata])
 
         robot_shape = GetGlobalPos(robot_shape, self.pos)
         self.robot_data.set_xdata(robot_shape[0])
@@ -156,7 +163,7 @@ class Readmap(QThread):
             Path.MOVETO,
             Path.LINETO ,
         ]
-        self.robots = []
+        self.robots = dict()
     # run method gets called when we start the thread
     def run(self):
         fid = open(self.map_name, encoding= 'UTF-8')
@@ -296,8 +303,8 @@ class Readmap(QThread):
                     self.map_x.append(x0)
                     self.map_y.append(y0)
             break
-        for r in self.robots:
-            r.clear_artist()
+        for k in self.robots.keys():
+            self.robots[k].clear_artist()
         self.robots.clear()
         for rs in self.js["robotGroup"]:
             for r in rs["robot"]:
@@ -306,7 +313,7 @@ class Readmap(QThread):
                 paths = os.path.dirname(self.map_name)
                 paths = os.path.join(paths, "robots")
                 robot.readModel(name, paths)
-                self.robots.append(robot)
+                self.robots[name] = robot
         self.signal.emit(self.map_name)
 
 class PointWidget(QtWidgets.QWidget):
@@ -511,6 +518,7 @@ class MapWidget(QtWidgets.QWidget):
         if filename:
             self.map_name = filename
             self.read_map.map_name = self.map_name
+            print("start openMap")
             self.read_map.start()
 
     def addPoint(self):
@@ -616,8 +624,6 @@ class MapWidget(QtWidgets.QWidget):
 
     def dragFiles(self,files):
         new_map = False
-        new_model = False
-        new_cp = False
         for file in files:
             if file and os.path.exists(file):
                 if self.smap_action.isEnabled() and os.path.splitext(file)[1] == ".scene":
@@ -625,26 +631,26 @@ class MapWidget(QtWidgets.QWidget):
                     new_map = True
         if new_map and self.map_name:
             self.read_map.map_name = self.map_name
+            print("start drag")
             self.read_map.start()
 
     def readFiles(self,files):
         new_map = False
         for file in files:
             if file and os.path.exists(file):
-                if not self.smap_action.isEnabled() and os.path.splitext(file)[1] == ".smap":
-                    self.map_name = file
-                    new_map = True
-            elif file:
-                try:
-                    if os.path.splitext(file)[1] == ".smap":
-                        self.smap_action.setEnabled(True)
-                except:
-                    self.autoMap.setChecked(False)
+                if not self.smap_action.isEnabled() and os.path.splitext(file)[1] == ".scene":
+                    if file != self.map_name:
+                        self.map_name = file
+                        new_map = True
+                    print("{} {}".format(file != self.map_name, new_map))
+
         if new_map and self.map_name:
             self.read_map.map_name = self.map_name
+            print("start here!!!")
             self.read_map.start()
 
     def readMapFinished(self, result):
+        print("result", result)
         if len(self.read_map.map_x) > 0:
             self.map_data.set_xdata(self.read_map.map_x)
             self.map_data.set_ydata(self.read_map.map_y)
@@ -693,31 +699,46 @@ class MapWidget(QtWidgets.QWidget):
                     self.ax.add_patch(arrow)
 
             ## model
-            for r in self.read_map.robots:
-                xdata = [-r.tail, -r.tail, r.head, r.head, -r.tail]
-                ydata = [r.width/2, -r.width/2, -r.width/2, r.width/2, r.width/2]
-                robot_shape = np.array([xdata, ydata])
-                xxdata = [-0.05, 0.05, 0.0, 0.0, 0.0]
-                xydata = [0.0, 0.0, 0.0, 0.05, -0.05]
-                cross_shape = np.array([xxdata,xydata])
-
-
-                r.pos[0] = random.uniform(self.draw_size[0],  self.draw_size[1])
-                r.pos[1] = random.uniform(self.draw_size[2],  self.draw_size[3])
-                r.pos[2] = random.uniform(-3.14,  3.14)
-
-                r.updateByPos(robot_shape, cross_shape)
-
+            for k in self.read_map.robots.keys():
+                r = self.read_map.robots[k]
+                if r.pos[0] is None:
+                    r.pos[0] = random.uniform(self.draw_size[0],  self.draw_size[1])
+                    r.pos[1] = random.uniform(self.draw_size[2],  self.draw_size[3])
+                    r.pos[2] = random.uniform(-3.14,  3.14)
+                    r.updateByPos()
                 self.ax.add_line(r.robot_data)
                 self.ax.add_line(r.robot_data_c0)
                 self.ax.add_patch(r.cur_arrow) #add robot arrow again
                 self.ax.add_artist(r.robot_text)
+                self.ax.add_line(r.trajectory)
+                self.ax.add_line(r.trajectory_next)
 
             self.setWindowTitle("{} : {}".format('MapViewer', os.path.split(self.map_name)[1]))
             font = QtGui.QFont()
             font.setBold(True)
             self.smap_action.setFont(font)
             self.static_canvas.figure.canvas.draw()
+    
+    def readtrajectory(self, name, x, y, xn, yn, x0, y0, r0):
+        if name in self.read_map.robots:
+            r = self.read_map.robots[name]
+            r.trajectory.set_xdata(x)
+            r.trajectory.set_ydata(y)
+            r.trajectory_next.set_xdata(xn)
+            r.trajectory_next.set_ydata(yn)
+            r.pos[0] = x0
+            r.pos[1] = y0
+            r.pos[2] = r0
+            print(name, x0, y0, r0)
+            r.updateByPos()
+            if len(self.draw_size) != 4:
+                xmax = max(x) + 10 
+                xmin = min(x) - 10
+                ymax = max(y) + 10
+                ymin = min(y) - 10
+                self.draw_size = [xmin,xmax, ymin, ymax]
+                self.ax.set_xlim(xmin, xmax)
+                self.ax.set_ylim(ymin, ymax)
 
     def redraw(self):
         self.static_canvas.figure.canvas.draw()
