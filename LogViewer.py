@@ -14,6 +14,7 @@ class LogViewer(QWidget):
         self.title = "LogViewer"
         self.InitWindow()
         self.resize(600,800)
+        self.moveHere_flag = False
 
     def InitWindow(self):
         self.setWindowTitle(self.title)
@@ -48,8 +49,12 @@ class LogViewer(QWidget):
     def setText(self, lines):
         self.plainText.setPlainText(''.join(lines))     
     def setLineNum(self, ln):
-        cursor = QtGui.QTextCursor(self.plainText.document().findBlockByLineNumber(ln))
-        self.plainText.setTextCursor(cursor)
+        print("moveHere_flag", self.moveHere_flag)
+        if not self.moveHere_flag:
+            cursor = QtGui.QTextCursor(self.plainText.document().findBlockByLineNumber(ln))
+            self.plainText.setTextCursor(cursor)
+        else:
+            self.moveHere_flag = False
     def closeEvent(self,event):
         self.hide()
         self.hiddened.emit(True)    
@@ -88,7 +93,9 @@ class LogViewer(QWidget):
         line = cur_cursor.selectedText()
         regex = re.compile("\[(.*?)\].*")
         out = regex.match(line)
+        print("moveHere out", out)
         if out:
+            self.moveHere_flag = True
             mtime = rbktimetodate(out.group(1))
             self.moveHereSignal.emit(mtime)
 
