@@ -23,6 +23,7 @@ import numpy as np
 import traceback
 import json
 from multiprocessing import freeze_support
+import zipfile
 
 class XYSelection:
     def __init__(self, num = 1):
@@ -330,9 +331,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 dir_name, _ = os.path.split(self.filenames[0])
                 pdir_name, _ = os.path.split(dir_name)
                 map_dir = os.path.join(pdir_name,"scene")
-                full_map_name = os.path.join(map_dir,"scene")
-                full_map_name = os.path.join(full_map_name,"rds.scene")
-                self.map_widget.readFiles([full_map_name])   
+                if os.path.isdir(map_dir):
+                    full_map_name = os.path.join(map_dir,"scene")
+                    if not os.path.isdir(full_map_name):
+                        zip_name = os.path.join(map_dir, "scene.zip")
+                        print("extract ", zip_name)
+                        fz = zipfile.ZipFile(zip_name, 'r')
+                        for file in fz.namelist():
+                            fz.extract(file, full_map_name)      
+                    else:
+                        print("use org scene file")
+                    full_map_name = os.path.join(full_map_name,"rds.scene")
+                    self.map_widget.readFiles([full_map_name])   
 
         for robot in self.read_thread.content['rTopoPos'].data:
             loc_idx = -1
