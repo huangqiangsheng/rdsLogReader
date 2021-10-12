@@ -12,7 +12,11 @@
         { "index": 7, "name": "rsid", "type": "double"},
         { "index": 8, "name": "reid", "type": "double"},
         { "index": 9, "name": "rpercentage", "type": "double"},
-        { "index": 10, "name": "status", "type": "double"}
+        { "index": 10, "name": "status", "type": "double"},
+        { "index": 11, "name": "vel_x", "type": "double"},
+        { "index": 12, "name": "vel_y", "type": "double"},
+        { "index": 13, "name": "veL_rot", "type": "double"},
+        { "index": 14, "name": "stopped", "type": "bool"}
       ]
     },
     "GET": {
@@ -108,6 +112,16 @@
         { "index": 1, "name": "current_order", "type": "double"},
         { "index": 2, "name": "cur_order_state", "type": "double"},
         { "index": 3, "name": "robot_state", "type": "double"}
+      ]      
+    },
+    "runCollision":{
+      "type": "runCollision",
+      "content": [
+        { "index": 0, "name": "outListSize", "type": "double"},
+        { "index": 1, "name": "send_id", "type": "double"},
+        { "index": 2, "name": "CMDSize", "type": "double"},
+        { "index": 3, "name": "moveTaskListSize", "type": "double"},
+        { "index": 4, "name": "exListSize", "type": "double"}
       ]      
     },
     "finishState":{
