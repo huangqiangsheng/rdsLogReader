@@ -960,6 +960,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         if checked:
             if not self.map_widget:
                 self.map_widget = MapWidget()
+                self.map_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
                 self.map_widget.hiddened.connect(self.mapClosed)
                 self.map_widget.keyPressEvent = self.keyPressEvent
             self.map_widget.show()
@@ -1009,6 +1010,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         if checked:
             if not self.log_widget:
                 self.log_widget = LogViewer()
+                self.log_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
                 self.log_widget.hiddened.connect(self.viewerClosed)
                 self.log_widget.moveHereSignal.connect(self.moveHere)
             if self.read_thread.reader:
@@ -1018,7 +1020,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             (xmin,xmax) = self.axs[0].get_xlim()
             tmid = (xmin+xmax)/2.0 
             if len(self.map_select_lines) > 1:
-                print("here1111")
                 for ln in self.map_select_lines:
                     ln.set_visible(True)
                 cur_t = self.map_select_lines[0].get_xdata()[0]
@@ -1115,6 +1116,7 @@ if __name__ == "__main__":
     try:
         qapp = QtWidgets.QApplication(sys.argv)
         app = ApplicationWindow()
+        app.setWindowIcon(QtGui.QIcon('rds.ico'))
         app.show()
         sys.exit(qapp.exec_())
     except:

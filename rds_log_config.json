@@ -95,6 +95,22 @@
         { "index": 0, "name": "init", "type": "bool"}
       ]      
     },
+    "updateOrderState":{
+      "type":"updateOrderState",
+      "content": [
+        { "index": 0, "name": "order_state", "type": "double"},
+        { "index": 1, "name": "in_state", "type": "double"},
+        { "index": 2, "name": "excutor_state", "type": "double"}
+      ]   
+    },
+    "current_excutor_list":{
+      "type":"current_excutor_list",
+      "content": [
+        { "index": 0, "name": "size1", "type": "double"},
+        { "index": 1, "name": "size2", "type": "double"},
+        { "index": 2, "name": "excutor_state", "type": "double"}
+      ]   
+    },
     "curOrderState":{
       "type": "curOrderState",
       "content": [
@@ -122,6 +138,13 @@
         { "index": 2, "name": "CMDSize", "type": "double"},
         { "index": 3, "name": "moveTaskListSize", "type": "double"},
         { "index": 4, "name": "exListSize", "type": "double"}
+      ]      
+    },
+    "runExcutor":{
+      "type": "runExcutor",
+      "content": [
+        { "index": 0, "name": "state", "type": "double"},
+        { "index": 1, "name": "size", "type": "double"}
       ]      
     },
     "finishState":{
