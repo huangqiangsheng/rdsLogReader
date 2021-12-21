@@ -149,7 +149,7 @@ class Readmap(QThread):
         self.js = dict()
         self.map_x = []
         self.map_y = []
-        self.verts = []
+        self.lines = []
         self.circles = []
         self.points = []
         self.straights = []
@@ -171,7 +171,7 @@ class Readmap(QThread):
         fid.close()
         self.map_x = []
         self.map_y = []
-        self.verts = []
+        self.lines = []
         self.circles = []
         self.straights = []
         self.points = []
@@ -191,6 +191,34 @@ class Readmap(QThread):
             if 'y' in endPos:
                 y2 = endPos['y']
             self.straights.append([(x1,y1),(x2,y2)])
+        def f3order(p0, p1, p2, p3):
+            dt = 0.001
+            t = 0
+            v = []
+            while(t < 1.0):
+                s = 1 - t
+                x = (p0 * s * s * s
+                        + 3.0 * p1 * s * s * t
+                        + 3.0 * p2 * s * t * t
+                        + p3 * t * t * t)
+                v.append(x)
+                t = t + dt
+            return v 
+        def f5order(p0, p1, p2, p3, p4, p5):
+            dt = 0.001
+            t = 0
+            v = []
+            while(t < 1.0):
+                s = 1 - t
+                x = (p0 * s * s * s * s * s 
+                        + 5.0 * p1 * s * s * s * s * t
+                        + 10.0 * p2 * s * s * s * t * t
+                        + 10.0 * p3 * s * s * t * t * t
+                        + 5.0 * p4 * s * t *t * t * t
+                        + p5 * t * t * t * t * t)
+                v.append(x)
+                t = t + dt
+            return v 
         for area in self.js["areas"]:
             logicMap = area["logicalMap"]
             if 'advancedCurves' in logicMap:
@@ -221,7 +249,16 @@ class Readmap(QThread):
                             x3 = line['endPos']['pos']['x']
                         if 'y' in line['endPos']['pos']:
                             y3 = line['endPos']['pos']['y']
-                        self.verts.append([(x0,y0),(x1,y1),(x2,y2),(x3,y3)])
+                        xs = np.array([])
+                        ys = np.array([])
+                        if line['className'] == 'BezierPath':
+                            xs = np.array(f3order(x0, x1, x2, x3))
+                            ys = np.array(f3order(y0, y1, y2, y3))
+                        elif line['className'] == 'DegenerateBezier':
+                            xs = np.array(f5order(x0, x1, x1, x2, x2, x3))
+                            ys = np.array(f5order(y0, y1, y1, y2, y2, y3))
+                        points = np.vstack((xs,ys))  
+                        self.lines.append(points.T)
                     elif line['className'] == 'ArcPath':
                         x1 = 0
                         y1 = 0
@@ -675,10 +712,9 @@ class MapWidget(QtWidgets.QWidget):
             [p.remove() for p in reversed(self.ax.patches)]
             [p.remove() for p in reversed(self.ax.texts)]
             [p.remove() for p in reversed(self.ax.lines)]
-            for vert in self.read_map.verts:
-                path = Path(vert, self.read_map.bezier_codes)
-                patch = patches.PathPatch(path, facecolor='none', edgecolor='orange', lw=3)
-                self.ax.add_patch(patch)
+            for line in self.read_map.lines:
+                path = Polygon(line, closed=False, facecolor='none', edgecolor='orange', lw=1)
+                self.ax.add_patch(path)
             for circle in self.read_map.circles:
                 wedge = patches.Arc([circle[0], circle[1]], circle[2]*2, circle[2]*2, 0, circle[3], circle[4], facecolor = 'none', ec="orange", lw = 3)
                 self.ax.add_patch(wedge)
