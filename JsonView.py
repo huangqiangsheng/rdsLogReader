@@ -12,7 +12,8 @@ class QJsonTreeItem(object):
 
         self.mParent = parent
         self.mChilds = []
-        self.mValue =None
+        self.mValue = None
+        self.mKey = None
 
     def appendChild(self, item):
         self.mChilds.append(item)
@@ -35,7 +36,7 @@ class QJsonTreeItem(object):
         self.mKey = key
 
     def setValue(self, value:str):
-       self. mValue = value
+       self.mValue = value
 
     def key(self):
         return self.mKey
@@ -73,12 +74,13 @@ class QJsonTreeItem(object):
             for i, v in enumerate(value):
                 child = self.load(v, rootItem)
                 child.setKey(str(i))
+                if child.value() == "" or child.value() == None:
+                    child.setValue(str(v))
                 rootItem.appendChild(child)
 
         else:
             # value is processed
             rootItem.setValue(value)
-
         return rootItem
 
 
@@ -184,7 +186,7 @@ class JsonView(QTreeView):
         self.model = QJsonModel()
         self.setModel(self.model)  
         self.resize(520, 435)
-        self.setWindowTitle("AGV Status")
+        self.setWindowTitle("RDS Status")
     def loadJson(self, bytes_json):
         self.model.loadJson(bytes_json)
     def loadJsonFile(self, fileName):
@@ -197,7 +199,6 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
 
     view = JsonView()
-
-    view.loadJsonFile("test_version.json")
+    view.loadJsonFile("rds_log_config.json")
     view.show()
     sys.exit(app.exec_())

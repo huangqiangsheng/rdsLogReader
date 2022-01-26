@@ -322,9 +322,50 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 idx = 0
             self.log_widget.setLineNum(idx)
 
+    def updateJsonView(self, mouse_time):
+        if self.sts_widget:
+            if len(self.read_thread.rstatus.chassis()[1]) <1:
+                return
+            ts = np.array(self.read_thread.rstatus.chassis()[1])
+            idx = (np.abs(ts - mouse_time)).argmin()
+            j = json.loads(self.read_thread.rstatus.chassis()[0][idx])   
+            if idx < len(self.read_thread.rstatus.version()[0]):
+                j["VERSION"] = "{}.{}".format(self.read_thread.rstatus.version()[0][idx],
+                                                                    j["PRODUCT_FULL_VERSION"])
+            if idx < len(self.read_thread.rstatus.fatalNum()[0]):
+                j["fatalNums"] = self.read_thread.rstatus.fatalNum()[0][idx]
+            if idx < len(self.read_thread.rstatus.fatals()[0]):
+                try:
+                    j["fatals"] = json.loads(self.read_thread.rstatus.fatals()[0][idx])
+                except:
+                    j["fatals"] = self.read_thread.rstatus.fatals()[0][idx]
+            if idx < len(self.read_thread.rstatus.errorNum()[0]):
+                j["errorNums"] = self.read_thread.rstatus.errorNum()[0][idx]
+            if idx < len(self.read_thread.rstatus.errors()[0]):
+                try:
+                    j["errors"] = json.loads(self.read_thread.rstatus.errors()[0][idx])
+                except:
+                    j["errors"] = self.read_thread.rstatus.errors()[0][idx]
+            if idx < len(self.read_thread.rstatus.warningNum()[0]):
+                j["warningNum"] = self.read_thread.rstatus.warningNum()[0][idx]
+            if idx < len(self.read_thread.rstatus.warnings()[0]):
+                try:
+                    j["warnings"] = json.loads(self.read_thread.rstatus.warnings()[0][idx])
+                except:
+                    j["warnings"] = self.read_thread.rstatus.warnings()[0][idx]
+            if idx < len(self.read_thread.rstatus.noticeNum()[0]):
+                j["noticeNum"] = self.read_thread.rstatus.noticeNum()[0][idx]
+            if idx < len(self.read_thread.rstatus.notices()[0]):
+                try:
+                    j["notices"] = json.loads(self.read_thread.rstatus.notices()[0][idx])
+                except:
+                    j["notices"] = self.read_thread.rstatus.notices()[0][idx]
+            self.sts_widget.loadJson(json.dumps(j).encode())
+
     def updateMap(self, mouse_time, robot_inds):
         self.updateMapSelectLine(mouse_time)
         self.updateLogView(mouse_time)
+        self.updateJsonView(mouse_time)
         if self.map_widget:
             if self.filenames:
                 full_map_name = None
@@ -708,7 +749,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             # self.key_loc_idx = -1
             self.openMap(self.map_action.isChecked())
             self.openViewer(self.view_action.isChecked())
-            # self.openJsonView(self.json_action.isChecked())
+            self.openJsonView(self.json_action.isChecked())
 
 
     def fileQuit(self):
@@ -1063,7 +1104,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     mouse_time = tmid * 86400 - 62135712000
                     if mouse_time > 1e6:
                         mouse_time = datetime.fromtimestamp(mouse_time)
-                        self.updateMap(mouse_time, -1, -1, -1)
+                        self.updateMap(mouse_time, dict())
         else:
             if self.sts_widget:
                 self.sts_widget.hide()           
@@ -1084,9 +1125,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.view_action.setChecked(False)
         self.openViewer(False)
 
-    # def jsonViewerClosed(self, event):
-    #     self.json_action.setChecked(False)
-    #     self.openJsonView(False)
+    def jsonViewerClosed(self, event):
+        self.json_action.setChecked(False)
+        self.openJsonView(False)
 
     def closeEvent(self, event):
         if self.map_widget:
