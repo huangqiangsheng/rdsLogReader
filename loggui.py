@@ -9,14 +9,13 @@ from matplotlib.figure import Figure
 from datetime import datetime
 from datetime import timedelta
 import os, sys
-from numpy import searchsorted
 from ExtendedComboBox import ExtendedComboBox
 from Widget import Widget
 from ReadThread import ReadThread, Fdir2Flink
-from rdsLoglib import ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLine, Service
+from rdsLoglib import Data, ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLine, Service
 from MapWidget import MapWidget, Readmap
 from LogViewer import LogViewer
-from JsonView import JsonView
+from JsonView import DataView, JsonView
 from MyToolBar import MyToolBar, RulerShapeMap, RulerShape
 import logging
 import numpy as np
@@ -52,13 +51,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.setWindowTitle('rdsLog分析器')
         self.read_thread = ReadThread()
         self.read_thread.signal.connect(self.readFinished)
-        self.setupUI()
-        self.map_select_flag = False
+        self.mid_line_t = None #中间蓝线对应的时间
+        self.mid_line_select = False #中间蓝线是否被选择上
         self.map_select_lines = []
         self.mouse_pressed = False
         self.map_widget = None
         self.log_widget = None
         self.sts_widget = None
+        self.dataView = None #显示特定数据框
+        self.setupUI()
 
     def setupUI(self):
         """初始化窗口结构""" 
@@ -119,11 +120,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.json_action.triggered.connect(self.openJsonView)
         self.tools_menu.addAction(self.json_action)
 
+        self.data_action = QtWidgets.QAction('&Open Data', self.tools_menu, checkable = True)
+        self.data_action.setShortcut(QtCore.Qt.CTRL + QtCore.Qt.Key_D)
+        self.data_action.setChecked(True)
+        self.data_action.triggered.connect(self.openData)
+        self.tools_menu.addAction(self.data_action)
+
         self.help_menu = QtWidgets.QMenu('&Help', self)
         self.help_menu.addAction('&About', self.about)
         self.menuBar().addMenu(self.help_menu)
 
-        self._main = Widget()
+        self._main = Widget(self)  #主窗口
         self._main.dropped.connect(self.dragFiles)
         self.setCentralWidget(self._main)
         self.layout = QtWidgets.QVBoxLayout(self._main)
@@ -158,7 +165,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.scroll.keyPressEvent = self.keyPressEvent
         # self.scroll.keyReleaseEvent = self.keyReleaseEvent
         self.is_keypressed = False
-        self.key_robot_inds = dict()
         # self.layout.addWidget(self.scroll)
         self.ruler = RulerShapeMap()
         self.old_home = MyToolBar.home
@@ -224,6 +230,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.check_all.stateChanged.connect(self.changeCheckBoxAll)
         self.check_all.setChecked(True)
 
+        # dataView相关的初始化
+        self.dataView = DataView(self)
+        self.dataView.hiddened.connect(self.dataViewerClosed)
+        self.dataView.selection.car_combo.activated.connect(self.dataView_robot_combo_onActivate)
+        self.dataView.selection.y_combo.activated.connect(self.dataView_robot_combo_onActivate)
+        
+        self.dataView.setGeometry(850,50,400,900)
+        self.dataView.show()
+
     def static_canvas_resizeEvent(self, event):
         self.static_canvas_ORG_resizeEvent(event)
         w = event.size().width()
@@ -287,8 +302,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             content = '\n'.join(contents)
         return content
 
-    def updateLogView(self, mouse_time):
-        if self.read_thread.reader and self.log_widget\
+    def updateLogView(self):
+        if self.read_thread.reader and self.log_widget and self.mid_line_t is not None\
             and 'GET' in self.read_thread.content:
             min_robot = None
             min_idx = None
@@ -296,7 +311,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             for robot in self.read_thread.content['GET'].data:
                 if 't' in self.read_thread.content['GET'].data[robot]:
                     ts = np.array(self.read_thread.content['GET'].data[robot]['t'])
-                    tmp_data = np.abs(ts - mouse_time)
+                    tmp_data = np.abs(ts - self.mid_line_t)
                     get_idx = tmp_data.argmin()
                     get_min = tmp_data[get_idx]
                     if min_robot is None:
@@ -312,7 +327,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 min_idx = 1
 
             idx = self.read_thread.content['GET'].data[min_robot]['_lm_'][min_idx]
-            dt1 = (mouse_time - self.read_thread.reader.tmin).total_seconds()
+            dt1 = (self.mid_line_t - self.read_thread.reader.tmin).total_seconds()
             dt2 = (self.read_thread.content['GET'].data[min_robot]['t'][min_idx] - self.read_thread.reader.tmin).total_seconds()
             ratio = dt1/ dt2
             idx = idx * ratio
@@ -322,12 +337,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 idx = 0
             self.log_widget.setLineNum(idx)
 
-    def updateJsonView(self, mouse_time):
+    def updateJsonView(self):
         if self.sts_widget:
             if len(self.read_thread.rstatus.chassis()[1]) <1:
                 return
             ts = np.array(self.read_thread.rstatus.chassis()[1])
-            idx = (np.abs(ts - mouse_time)).argmin()
+            idx = (np.abs(ts - self.mid_line_t)).argmin()
             j = json.loads(self.read_thread.rstatus.chassis()[0][idx])   
             if idx < len(self.read_thread.rstatus.version()[0]):
                 j["VERSION"] = "{}.{}".format(self.read_thread.rstatus.version()[0][idx],
@@ -360,12 +375,43 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     j["notices"] = json.loads(self.read_thread.rstatus.notices()[0][idx])
                 except:
                     j["notices"] = self.read_thread.rstatus.notices()[0][idx]
-            self.sts_widget.loadJson(json.dumps(j).encode())
+            self.sts_widget.loadJson(j)
 
-    def updateMap(self, mouse_time, robot_inds):
-        self.updateMapSelectLine(mouse_time)
-        self.updateLogView(mouse_time)
-        self.updateJsonView(mouse_time)
+    def updateDataView(self):
+        robot = self.dataView.selection.car_combo.currentText()
+        first_k = self.dataView.selection.y_combo.currentText()
+        value = None
+        t = None
+        if first_k in self.read_thread.content \
+            and robot in self.read_thread.content[first_k].data:
+            value = self.read_thread.content[first_k].data[robot]
+            t = self.read_thread.content[first_k].data[robot]['t']
+        if value is None or t is None:
+            return
+        ts = np.array(t)
+        idx = (np.abs(ts - self.mid_line_t)).argmin()
+        j = dict()
+        for k in self.read_thread.content[first_k].data[robot].keys():
+            if k[0] == '_':
+                continue
+            j[k] = self.read_thread.content[first_k].data[robot][k][idx]
+            # 对于订单特殊处理
+            if isinstance(j[k], dict):
+                if "createTime" in j[k]:
+                    if isinstance(j[k]["createTime"], int):
+                        j[k]["createTime"] = datetime.fromtimestamp(j[k]["createTime"])
+                if "terminalTime" in j[k]:
+                    if isinstance(j[k]["terminalTime"], int):
+                        j[k]["terminalTime"] = datetime.fromtimestamp(j[k]["terminalTime"])
+        self.dataView.loadJson(j)
+        
+    def updateMap(self):
+        if self.mid_line_t is None:
+            return
+        self.updateMapSelectLine()
+        self.updateLogView()
+        self.updateJsonView()
+        self.updateDataView()
         if self.map_widget:
             if self.filenames:
                 full_map_name = None
@@ -387,11 +433,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
         for robot in self.read_thread.content['rTopoPos'].data:
             loc_idx = -1
-            if robot not in robot_inds or robot_inds[robot] < 0:
-                loc_ts = np.array(self.read_thread.content['rTopoPos'].data[robot]['t'])
-                loc_idx = (np.abs(loc_ts - mouse_time)).argmin()
-            else:
-                loc_idx = robot_inds[robot]
+            loc_ts = np.array(self.read_thread.content['rTopoPos'].data[robot]['t'])
+            loc_idx = (np.abs(loc_ts - self.mid_line_t)).argmin()
             if loc_idx < 1:
                 loc_idx = 1
             if self.map_widget:
@@ -429,8 +472,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     content = self.get_content(mouse_time)
                     if content != "":
                         self.log_info.append(content[:-1])
-                if self.map_select_flag:
-                    self.updateMap(mouse_time,dict())
+                if self.mid_line_select:
+                    self.mid_line_t = mouse_time
+                    self.updateMap()
 
     def mouse_move(self, event):
         if event.inaxes and self.finishReadFlag:
@@ -439,8 +483,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 mouse_time = datetime.fromtimestamp(mouse_time)
                 content = self.get_content(mouse_time)
                 self.info.setText(content)
-                if self.map_select_flag:
-                    self.updateMap(mouse_time,dict())
+                if self.mid_line_select:
+                    self.mid_line_t = mouse_time
+                    self.updateMap()
             else:
                 self.info.setText("")
         elif not self.finishReadFlag:
@@ -448,14 +493,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
     def mouse_release(self, event):
         self.mouse_pressed = False
-        self.map_select_flag = False
+        self.mid_line_select = False
 
     def moveHere(self, mtime):
         mouse_time = mtime
         if type(mouse_time) is not datetime:
             mouse_time = mtime * 86400 - 62135712000
             mouse_time = datetime.fromtimestamp(mouse_time)
-        self.updateMap(mouse_time,dict())
+            self.mid_line_t = mouse_time
+        self.updateMap()
 
     def savePlotData(self, cur_ax):
         pass
@@ -534,10 +580,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def onpick(self, event):
         if self.map_action.isChecked() \
         or self.view_action.isChecked() \
-        or self.json_action.isChecked():
-            self.map_select_flag = True
+        or self.json_action.isChecked() \
+        or self.data_action.isChecked():
+            self.mid_line_select = True
         else:
-            self.map_select_flag = False
+            self.mid_line_select = False
 
     def keyPressEvent(self,event):
         pass
@@ -734,22 +781,21 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 last_combo_ind = xys.y_combo.currentIndex()
                 xys.y_combo.clear()
                 xys.y_combo.addItems(self.read_thread.data_keys)
-                print("data keys {}".format(self.read_thread.data_keys))
                 if last_combo_ind >= 0:
                     xys.y_combo.setCurrentIndex(last_combo_ind)
-    
+            self.dataView.setSelectionItems(self.read_thread.robot_keys, self.read_thread.group_keys)
+
             for i, ax in enumerate(self.axs):
                     self.drawdata(ax, self.xys[i].car_combo.currentText(), 
                         self.xys[i].y_combo.currentText(),
                         True)
-            # TODO reopen new log no select line
-            # self.updateMapSelectLine()
-            # self.key_laser_channel = -1
-            # self.key_laser_idx = -1
-            # self.key_loc_idx = -1
+            self.updateMidLine()
+            self.updateMapSelectLine()
             self.openMap(self.map_action.isChecked())
             self.openViewer(self.view_action.isChecked())
             self.openJsonView(self.json_action.isChecked())
+            self.openData(self.data_action.isChecked())
+            self.updateMap()
 
 
     def fileQuit(self):
@@ -784,6 +830,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
         self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False)
 
+
+    def dataView_robot_combo_onActivate(self):
+        self.updateDataView()
 
         # logging.info('Fig.' + str(index+1) + ' : ' + text + ' ' + 't')
 
@@ -1000,52 +1049,50 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def openMap(self, checked):
         if checked:
             if not self.map_widget:
-                self.map_widget = MapWidget()
+                self.map_widget = MapWidget(self)
                 self.map_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
                 self.map_widget.hiddened.connect(self.mapClosed)
                 self.map_widget.keyPressEvent = self.keyPressEvent
             self.map_widget.show()
-            (xmin,xmax) = self.axs[0].get_xlim()
-            tmid = (xmin+xmax)/2.0 
-            if len(self.map_select_lines) < 1:
-                for ax in self.axs:
-                    wl = ax.axvline(tmid, color = 'c', linewidth = 10, alpha = 0.5, picker = 10)
-                    self.map_select_lines.append(wl) 
-                    mouse_time = tmid * 86400 - 62135712000
-                    if mouse_time > 1e6:
-                        mouse_time = datetime.fromtimestamp(mouse_time)
-                        self.updateMap(mouse_time, dict())
-            else:
-                cur_t = self.map_select_lines[0].get_xdata()[0]
-                if type(cur_t) is not datetime:
-                    cur_t = cur_t * 86400 - 62135712000
-                    cur_t = datetime.fromtimestamp(cur_t)
-                if type(xmin) is not datetime:
-                    xmin = xmin * 86400 - 62135712000
-                    xmin = datetime.fromtimestamp(xmin)
-                if type(xmax) is not datetime:
-                    xmax = xmax * 86400 - 62135712000
-                    xmax = datetime.fromtimestamp(xmax)
-                if cur_t >= xmin and cur_t <= xmax:
-                    for ln in self.map_select_lines:
-                        ln.set_visible(True)
-                    self.updateMap(cur_t, self.key_robot_inds)
-                else:
-                    for ln in self.map_select_lines:
-                        ln.set_visible(True)
-                        ln.set_xdata([tmid, tmid])
-                        mouse_time = tmid * 86400 - 62135712000
-                        if mouse_time > 1e6:
-                            mouse_time = datetime.fromtimestamp(mouse_time)
-                            self.updateMap(mouse_time, dict())
-
-
+            self.updateMap()
         else:
             if self.map_widget:
                 self.map_widget.hide()
                 for ln in self.map_select_lines:
                     ln.set_visible(False)
         self.static_canvas.figure.canvas.draw()
+
+    def updateMidLine(self):
+        (xmin,xmax) = self.axs[0].get_xlim()
+        tmid = (xmin+xmax)/2.0 
+        if len(self.map_select_lines) < 1:
+            for ax in self.axs:
+                wl = ax.axvline(tmid, color = 'c', linewidth = 10, alpha = 0.5, picker = 10)
+                self.map_select_lines.append(wl) 
+                mouse_time = tmid * 86400 - 62135712000
+                if mouse_time > 1e6:
+                    self.mid_line_t = datetime.fromtimestamp(mouse_time)
+        else:
+            cur_t = self.map_select_lines[0].get_xdata()[0]
+            if type(cur_t) is not datetime:
+                cur_t = cur_t * 86400 - 62135712000
+                cur_t = datetime.fromtimestamp(cur_t)
+            if type(xmin) is not datetime:
+                xmin = xmin * 86400 - 62135712000
+                xmin = datetime.fromtimestamp(xmin)
+            if type(xmax) is not datetime:
+                xmax = xmax * 86400 - 62135712000
+                xmax = datetime.fromtimestamp(xmax)
+            if cur_t >= xmin and cur_t <= xmax:
+                for ln in self.map_select_lines:
+                    ln.set_visible(True)
+            else:
+                for ln in self.map_select_lines:
+                    ln.set_visible(True)
+                    ln.set_xdata([tmid, tmid])
+                    mouse_time = tmid * 86400 - 62135712000
+                    if mouse_time > 1e6:
+                        self.mid_line_t = datetime.fromtimestamp(mouse_time)
 
     def openViewer(self, checked):
         if checked:
@@ -1057,61 +1104,33 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             if self.read_thread.reader:
                 self.log_widget.setText(self.read_thread.reader.lines)
             self.log_widget.show()
-
-            (xmin,xmax) = self.axs[0].get_xlim()
-            tmid = (xmin+xmax)/2.0 
-            if len(self.map_select_lines) > 1:
-                for ln in self.map_select_lines:
-                    ln.set_visible(True)
-                cur_t = self.map_select_lines[0].get_xdata()[0]
-                if type(cur_t) is not datetime:
-                    cur_t = cur_t * 86400 - 62135712000
-                    cur_t = datetime.fromtimestamp(cur_t)
-                self.updateLogView(cur_t)
-            else:
-                for ax in self.axs:
-                    wl = ax.axvline(tmid, color = 'c', linewidth = 10, alpha = 0.5, picker = 10)
-                    self.map_select_lines.append(wl) 
-                    mouse_time = tmid * 86400 - 62135712000
-                    if mouse_time > 1e6:
-                        mouse_time = datetime.fromtimestamp(mouse_time)
-                        self.updateLogView(mouse_time)
+            self.updateLogView()
 
         else:
             if self.log_widget:
                 self.log_widget.hide() 
     
+    def openData(self, checked):
+        if checked:
+            self.dataView.show()
+        else:
+            self.dataView.hide()
+
     def openJsonView(self, checked):
         if checked:
             if not self.sts_widget:
                 self.sts_widget = JsonView()
                 self.sts_widget.hiddened.connect(self.jsonViewerClosed)
             self.sts_widget.show()
-            (xmin,xmax) = self.axs[0].get_xlim()
-            tmid = (xmin+xmax)/2.0 
-            if len(self.map_select_lines) > 1:
-                for ln in self.map_select_lines:
-                    ln.set_visible(True)
-                cur_t = self.map_select_lines[0].get_xdata()[0]
-                if type(cur_t) is not datetime:
-                    cur_t = cur_t * 86400 - 62135712000
-                    cur_t = datetime.fromtimestamp(cur_t)
-                self.updateMap(cur_t, self.key_robot_inds)
-            else:
-                for ax in self.axs:
-                    wl = ax.axvline(tmid, color = 'c', linewidth = 10, alpha = 0.5, picker = 10)
-                    self.map_select_lines.append(wl) 
-                    mouse_time = tmid * 86400 - 62135712000
-                    if mouse_time > 1e6:
-                        mouse_time = datetime.fromtimestamp(mouse_time)
-                        self.updateMap(mouse_time, dict())
+            self.updateMap()
         else:
             if self.sts_widget:
                 self.sts_widget.hide()           
 
-    def updateMapSelectLine(self, mouse_time):
+    def updateMapSelectLine(self):
         for ln in self.map_select_lines:
-            ln.set_xdata([mouse_time,mouse_time])
+            if self.mid_line_t is not None:
+                ln.set_xdata([self.mid_line_t,self.mid_line_t])
         self.static_canvas.figure.canvas.draw()
 
     def mapClosed(self,info):
@@ -1128,6 +1147,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def jsonViewerClosed(self, event):
         self.json_action.setChecked(False)
         self.openJsonView(False)
+    
+    def dataViewerClosed(self, event):
+        self.data_action.setChecked(False)
+        self.openData(False)
 
     def closeEvent(self, event):
         if self.map_widget:

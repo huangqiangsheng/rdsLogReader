@@ -1,3 +1,4 @@
+import json
 import re
 import math
 from datetime import datetime
@@ -204,7 +205,7 @@ class ReadLog:
 class Data:
     def __init__(self, info):
         self.type = info['type']
-        self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*?)\].*".format(self.type))
+        self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*)\]".format(self.type))
         self.short_regx = "["+self.type
         self.info = info['content']
         self.data = dict()
@@ -262,6 +263,13 @@ class Data:
                     data.append(0.0)
             except:
                 data.append(np.nan)
+        elif tmp['type'] == 'json':
+            try:
+                data.append(json.loads(values[ind]))
+            except:
+                data.append(values[ind])
+        else:
+            data.apeend(values[ind])
     def parse(self, line, num):
         if self.short_regx in line:
             out = self.regex.match(line)
@@ -495,3 +503,80 @@ class Service:
     def insert_data(self, other):
         for i in range(len(self.data)):
             self.data[i].extend(other.data[i])
+
+
+class RobotStatus:
+    """  版本报错信息
+    t[0]: 
+    t[1]:
+    data[0]: version
+    data[1]: chassis
+    data[2]: fatal num
+    data[3]: fatal
+    data[4]: error num
+    data[5]: erros
+    data[6]: warning num
+    data[7]: warning nums
+    data[8]: notice num
+    data[9]: notices    
+    """
+    def __init__(self):
+        self.regex = [re.compile("\[(.*?)\].*\[Text\]\[Robokit version: *(.*?)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Chassis Info: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[FatalNum: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Fatals: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[ErrorNum: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Errors: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[WarningNum: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Warnings: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[NoticeNum: (.*)\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Notices: (.*)\]")]
+        self.short_regx = ["Robokit version:",
+                           "Chassis Info:",
+                           "FatalNum:",
+                           "Fatals:",
+                           "ErrorNum:",
+                           "Errors:",
+                           "WarningNum:",
+                           "Warnings:",
+                           "NoticeNum:",
+                           "Notices"]
+        self.time = [[] for _ in range(len(self.regex))]
+        self.data = [[] for _ in range(len(self.regex))]
+    def parse(self, line):
+        for iter in range(0,10):
+            if self.short_regx[iter] in line:
+                out = self.regex[iter].match(line)
+                if out:
+                    self.time[iter].append(rbktimetodate(out.group(1)))
+                    self.data[iter].append(out.group(2))
+                    return True
+                return False
+        return False
+    def t(self):
+        return self.time[0]
+    def version(self):
+        return self.data[0], self.time[0]
+    def chassis(self):
+        return self.data[1], self.time[1]
+    def fatalNum(self):
+        return self.data[2], self.time[1]
+    def fatals(self):
+        return self.data[3], self.time[1]
+    def errorNum(self):
+        return self.data[4], self.time[1]
+    def errors(self):
+        return self.data[5], self.time[1]
+    def warningNum(self):
+        return self.data[6], self.time[1]
+    def warnings(self):
+        return self.data[7], self.time[1]
+    def noticeNum(self):
+        return self.data[8], self.time[1]
+    def notices(self):
+        return self.data[9], self.time[1]
+    def insert_data(self, other):
+        for i in range(len(self.data)):
+            self.data[i].extend(other.data[i])
+        for i in range(len(self.time)):
+            self.time[i].extend(other.time[i])

@@ -34,7 +34,10 @@
         { "index": 11, "name": "is_charging", "type": "bool"},
         { "index": 12, "name": "battery_percentage", "type": "double"},
         { "index": 13, "name": "clearMoveTask", "type": "bool"},
-        { "index": 14, "name": "low_battery", "type": "bool"}
+        { "index": 14, "name": "low_battery", "type": "bool"},
+        { "index": 16, "name": "same_map_with_scene", "type": "bool"},
+        { "index": 17, "name": "finishedCurrentOrders", "type": "bool"},
+        { "index": 18, "name": "is_suspend", "type": "bool"}
       ]
     },
     "runBlockIn": {
@@ -50,16 +53,7 @@
       "content": [
         { "index": 0, "name": "state", "type": "double"}
       ]
-    },
-    "robotState": {
-      "type": "robotState",
-      "content": [
-        { "index": 0, "name": "block_state", "type": "double"},
-        { "index": 1, "name": "complete", "type": "bool"},
-        { "index": 2, "name": "order_state", "type": "double"},
-        { "index": 3, "name": "order_type", "type": "double"}
-      ]
-    },    
+    },  
     "Block": {
       "type": "Block",
       "content": [
@@ -82,11 +76,12 @@
     "robotOrderStatus": {
         "type": "robotOrderStatus",
         "content": [
-          { "index": 0, "name": "orderSize", "type": "double"},
-          { "index": 1, "name": "cur_order", "type": "double"},
-          { "index": 2, "name": "type", "type": "double"},
-          { "index": 3, "name": "complete", "type": "bool"},
-          { "index": 4, "name": "order_state", "type": "double"}
+          { "index": 0, "name": "cur_order", "type": "double"},
+          { "index": 1, "name": "type", "type": "double"},
+          { "index": 2, "name": "complete", "type": "bool"},
+          { "index": 3, "name": "order_state", "type": "double"},
+          { "index": 4, "name": "joinable", "type": "bool"},
+          { "index": 5, "name": "order", "type":"json"}
         ]
     },
     "TaskDispatcherIn":{

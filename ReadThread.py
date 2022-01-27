@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QThread, pyqtSignal
-from rdsLoglib import Data, ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLine, Service
+from rdsLoglib import Data, ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLine, Service, RobotStatus
 from datetime import timedelta
 from datetime import datetime
 import os
@@ -50,11 +50,13 @@ class ReadThread(QThread):
         self.fatal = FatalLine()
         self.notice = NoticeLine()
         self.service = Service()
+        self.rstatus = RobotStatus()
         self.log =  []
         self.tlist = []
         self.cpu_num = 4
         self.reader = None
         self.data_keys = set()
+        self.group_keys = set()
         self.robot_keys = []
         try:
             f = open('rds_log_config.json',encoding= 'UTF-8')
@@ -92,14 +94,16 @@ class ReadThread(QThread):
             self.reader.thread_num = self.cpu_num
             time_start=time.time()
             self.reader.parse(self.content, self.err, 
-                              self.war, self.fatal, self.notice, self.service)
+                              self.war, self.fatal, self.notice, self.service,
+                              self.rstatus)
             time_end=time.time()
             self.log.append('read time cost: ' + str(time_end-time_start))
             # self.content.update(content_delay)
-            print("123",self.content.keys())
 
             tmax = self.reader.tmax
             tmin = self.reader.tmin
+            if tmax is None or tmin is None:
+                logging.error("Failed to analysis {}".format(self.filenames))
             dt = tmax - tmin
             self.tlist = [tmin + timedelta(microseconds=x) for x in range(0, int(dt.total_seconds()*1e6+1000),1000)]
             #save Error
@@ -111,14 +115,20 @@ class ReadThread(QThread):
 
             robot_name = set()
             self.data_keys = set()
+            self.group_keys = set()
             for k in self.content.keys():
                 for robot in self.content[k].data.keys():
                     robot_name.add(robot)
+                    self.group_keys.add(k)
                     for name in self.content[k].data[robot].keys():
                         if name != 't' and name[0] != '_':
-                            self.data_keys.add(k+'.'+name)
+                            if len(self.content[k].data[robot][name]) > 0 \
+                                and (isinstance(self.content[k].data[robot][name][0], int) \
+                                    or isinstance(self.content[k].data[robot][name][0], float)):
+                                self.data_keys.add(k+'.'+name)
             self.robot_keys = list(robot_name)
             self.data_keys = sorted(self.data_keys)
+            self.group_keys = sorted(self.group_keys)
             fid = open(output_fname,"w") 
             print("="*20, file = fid)
             print("Files: ", self.filenames, file = fid)

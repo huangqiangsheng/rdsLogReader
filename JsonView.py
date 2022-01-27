@@ -2,11 +2,13 @@
 
 import sys
 
-from PyQt5.QtCore import QAbstractItemModel, QModelIndex, Qt, QAbstractListModel, QMimeData, \
+from PyQt5.QtCore import QAbstractItemModel, QModelIndex, Qt , QItemSelectionModel, \
     QDataStream, QByteArray, QJsonDocument, QVariant, QJsonValue, QJsonParseError, \
-        pyqtSignal
-from PyQt5.QtWidgets import QApplication, QFileDialog, QTreeView
+        pyqtSignal 
+from PyQt5.QtWidgets import QApplication, QFileDialog, QTreeView, QStyledItemDelegate, QLineEdit
 import json
+from PyQt5 import QtCore, QtWidgets,QtGui
+from ExtendedComboBox import ExtendedComboBox
 class QJsonTreeItem(object):
     def __init__(self, parent=None):
 
@@ -49,16 +51,6 @@ class QJsonTreeItem(object):
         rootItem = QJsonTreeItem(parent)
         rootItem.setKey("root")
 
-        try:
-            value = value.toVariant()
-        except AttributeError:
-            pass
-
-        try:
-            value = value.toObject()
-        except AttributeError:
-            pass
-
         if isinstance(value, dict):
             # process the key/value pairs
             rootItem.setValue("")
@@ -93,22 +85,23 @@ class QJsonModel(QAbstractItemModel):
     def load(self,fileName):
         if fileName is None or fileName is False:
             return False
-
-        with open(fileName,"rb",) as file:
-            if file is None:
-                return False
-            self.loadJson(file.read())
+        with open(fileName, 'r',encoding= 'UTF-8') as fid:
+            try:
+                j = json.load(fid)
+                self.loadJson(j)
+            except:
+                print("load json file {} error".format(fileName))
 
     def loadJson(self, json):
         error = QJsonParseError()
-        self.mDocument = QJsonDocument.fromJson(json,error)
+        self.mDocument = json
 
         if self.mDocument is not None:
             self.beginResetModel()
-            if self.mDocument.isArray():
-                self.mRootItem.load( list( self.mDocument.array()))
+            if isinstance(self.mDocument, list):
+                self.mRootItem.load(self.mDocument)
             else:
-                self.mRootItem = self.mRootItem.load( self.mDocument.object())
+                self.mRootItem = self.mRootItem.load(self.mDocument)
             self.endResetModel()
 
             return True
@@ -186,7 +179,11 @@ class JsonView(QTreeView):
         self.model = QJsonModel()
         self.setModel(self.model)  
         self.resize(520, 435)
-        self.setWindowTitle("RDS Status")
+        self.setWindowTitle("Status")
+        # self.delegate = JsonDelegate(self)
+        # self.setSelectionMode(QTreeView.SingleSelection)
+        # delegate = self.itemDelegate()
+        # self.setItemDelegate(self.delegate)
     def loadJson(self, bytes_json):
         self.model.loadJson(bytes_json)
     def loadJsonFile(self, fileName):
@@ -195,10 +192,50 @@ class JsonView(QTreeView):
         self.hide()
         self.hiddened.emit(True)
 
+
+class DataSelection:
+    def __init__(self):
+        self.y_label = QtWidgets.QLabel('Data')
+        self.y_combo = ExtendedComboBox()
+        self.car_combo = ExtendedComboBox()
+        self.car_label = QtWidgets.QLabel('AGV')
+        car_form = QtWidgets.QFormLayout()
+        car_form.addRow(self.car_label,self.car_combo)
+        y_form = QtWidgets.QFormLayout()
+        y_form.addRow(self.y_label,self.y_combo)
+        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox.addLayout(y_form)
+        self.vbox.addLayout(car_form)
+
+class DataView(QtWidgets.QMainWindow):
+    hiddened = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent =None):
+        super().__init__(parent)
+        self.setWindowTitle("DataView")
+        self._main = QtWidgets.QWidget()
+        self.setCentralWidget(self._main)
+        self.layout = QtWidgets.QVBoxLayout(self._main)
+        self.selection = DataSelection()
+        self.layout.addLayout(self.selection.vbox)
+        self.jsonView = JsonView()
+        self.layout.addWidget(self.jsonView)
+    def loadJson(self, data):
+        self.jsonView.loadJson(data)
+        self.jsonView.expandToDepth(1)
+    def loadJsonFile(self, fileName):
+        self.jsonView.loadJsonFile(fileName)
+        self.jsonView.expandToDepth(1)
+    def closeEvent(self, event):
+        self.hide()
+        self.hiddened.emit(True)    
+    def setSelectionItems(self, car, data):
+        self.selection.car_combo.addItems(car)
+        self.selection.y_combo.addItems(data)
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    view = JsonView()
+    view = DataView()
     view.loadJsonFile("rds_log_config.json")
     view.show()
     sys.exit(app.exec_())

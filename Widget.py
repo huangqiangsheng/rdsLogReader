@@ -3,8 +3,8 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot
 
 class Widget(QtWidgets.QWidget):
     dropped = pyqtSignal('PyQt_PyObject')
-    def __init__(self):
-        super(QtWidgets.QWidget, self).__init__()
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
         self.setAcceptDrops(True)
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls:

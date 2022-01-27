@@ -476,8 +476,8 @@ class CurveWidget(QtWidgets.QWidget):
 class MapWidget(QtWidgets.QWidget):
     dropped = pyqtSignal('PyQt_PyObject')
     hiddened = pyqtSignal('PyQt_PyObject')
-    def __init__(self):
-        super(QtWidgets.QWidget, self).__init__()
+    def __init__(self, parent=None):
+        super(QtWidgets.QWidget, self).__init__(parent)
         self.setWindowTitle('MapViewer')
         self.map_name = None
         self.model_name = None
