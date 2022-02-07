@@ -53,6 +53,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.read_thread.signal.connect(self.readFinished)
         self.mid_line_t = None #中间蓝线对应的时间
         self.mid_line_select = False #中间蓝线是否被选择上
+        self.in_close = False # 是否在关闭窗口阶段
         self.map_select_lines = []
         self.mouse_pressed = False
         self.map_widget = None
@@ -532,9 +533,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         if type(mouse_time) is not datetime:
             mouse_time = mtime * 86400 - 62135712000
             mouse_time = datetime.fromtimestamp(mouse_time)
-            self.mid_line_t = mouse_time
-        else:
-            self.mid_line_t = mouse_time
+        self.mid_line_t = mouse_time
         self.updateMap()
 
     def savePlotData(self, cur_ax):
@@ -1175,6 +1174,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.openJsonView(False)
 
     def closeEvent(self, event):
+        self.in_close = True
         self.map_widget.close()
         if self.log_widget:
             self.log_widget.close()
@@ -1185,9 +1185,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.close()
 
     def dataViewClosed(self, other):
-        self.dataViews.remove(other)
-        if len(self.dataViews) < 1:
-            self.data_action.setChecked(False)
+        if not self.in_close:
+            self.dataViews.remove(other)
+            if len(self.dataViews) < 1:
+                self.data_action.setChecked(False)
     
     def dataViewNewOne(self, other):
         dataView = DataView()

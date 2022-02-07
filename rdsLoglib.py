@@ -203,8 +203,8 @@ class ReadLog:
 
 
 class Data:
-    def __init__(self, info):
-        self.type = info['type']
+    def __init__(self, info, key_name:str):
+        self.type = key_name
         self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*)\]".format(self.type))
         self.short_regx = "["+self.type
         self.info = info['content']

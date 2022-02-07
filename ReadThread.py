@@ -80,8 +80,13 @@ class ReadThread(QThread):
             self.log.append("Failed to open {}".format(self.log_config))
         self.content = dict()
         content_delay = dict()
-        for k in self.js.keys():
-            self.content[k] = Data(self.js[k])
+        for k in self.js:
+            if "type" in self.js[k] and "content" in self.js[k]:
+                if isinstance(self.js[k]['type'], list):
+                    for type in self.js[k]["type"]:
+                        self.content[type] = Data(self.js[k], type)
+                elif isinstance(self.js[k]['type'], str):
+                    self.content[self.js[k]['type']] = Data(self.js[k], self.js[k]['type'])
         self.err = ErrorLine()
         self.war = WarningLine()
         self.fatal = FatalLine()
