@@ -93,7 +93,6 @@ class LogViewer(QWidget):
         line = cur_cursor.selectedText()
         regex = re.compile("\[(.*?)\].*")
         out = regex.match(line)
-        print("moveHere out", out)
         if out:
             self.moveHere_flag = True
             mtime = rbktimetodate(out.group(1))

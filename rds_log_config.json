@@ -23,8 +23,10 @@
       "type": "GET",
       "content": [
         { "index": 0, "name": "connect", "type": "double"},
+        { "index": 1, "name": "cur_map", "type": "str"},
         { "index": 2, "name": "reloc", "type": "double"},
         { "index": 3, "name": "locked", "type": "bool"},
+        { "index": 4, "name": "nick_name", "type": "str"},
         { "index": 5, "name": "order_state", "type": "double"},
         { "index": 6, "name": "control", "type": "bool"},
         { "index": 7, "name": "dispatchable", "type": "double"},
@@ -35,6 +37,7 @@
         { "index": 12, "name": "battery_percentage", "type": "double"},
         { "index": 13, "name": "clearMoveTask", "type": "bool"},
         { "index": 14, "name": "low_battery", "type": "bool"},
+        { "index": 15, "name": "cu_area_name", "type": "str"},
         { "index": 16, "name": "same_map_with_scene", "type": "bool"},
         { "index": 17, "name": "finishedCurrentOrders", "type": "bool"},
         { "index": 18, "name": "is_suspend", "type": "bool"}
@@ -60,9 +63,13 @@
         { "index": 0, "name": "cur_block_ind", "type": "double"},
         { "index": 1, "name": "block_size", "type": "double"},
         { "index": 2, "name": "block_state", "type": "double"},
-        { "index": 3, "name": "excutor_state", "type": "double"},
-        { "index": 4, "name": "task_state", "type": "double"},
-        { "index": 5, "name": "cur_block_state", "type": "double"}
+        { "index": 3, "name": "task_state", "type": "double"},
+        { "index": 4, "name": "excutor_state", "type": "double"},
+        { "index": 5, "name": "org_task_state", "type": "double"},
+        { "index": 6, "name": "org_excutor_state", "type": "double"},
+        { "index": 7, "name": "task_blockId", "type": "str"},
+        { "index": 8, "name": "cur_blockId", "type": "str"},
+        { "index": 9, "name": "mapfActive", "type": "bool"}
       ]
     },
     "WAITING": {
@@ -148,6 +155,37 @@
         { "index": 0, "name": "current_order", "type": "double"},
         { "index": 1, "name": "order_size", "type": "double"},
         { "index": 2, "name": "charged_ok_to_next_order", "type": "bool"}
+      ]      
+    },
+    "SEND":{
+      "type": "SEND",
+      "content": [
+        { "index": 0, "name": "cmd_uuid", "type": "str"},
+        { "index": 1, "name": "code", "type": "str"},
+        { "index": 2, "name": "port", "type": "str"},
+        { "index": 3, "name": "task_list_size", "type": "int"},
+        { "index": 4, "name": "cmd", "type": "json"}
+      ]
+    },
+    "LiftStatus":{
+      "type": "LiftStatus",
+      "content": [
+        { "index": 0, "name": "robot_name", "type": "str"},
+        { "index": 1, "name": "state", "type": "double"},
+        { "index": 2, "name": "is_new_task", "type": "bool"},
+        { "index": 3, "name": "is_locked", "type": "bool"},
+        { "index": 4, "name": "connection", "type": "int"},
+        { "index": 5, "name": "available", "type": "bool"},
+        { "index": 6, "name": "running_status", "type": "bool"},
+        { "index": 7, "name": "lift_current_area", "type": "str"},
+        { "index": 8, "name": "lift_area", "type": "str"},
+        { "index": 9, "name": "uuid", "type": "str"},
+        { "index": 10, "name": "runMode", "type": "double"},
+        { "index": 11, "name": "err", "type": "str"},
+        { "index": 12, "name": "has_door", "type": "bool"},
+        { "index": 13, "name": "doorStatus", "type": "int"},
+        { "index": 14, "name": "command_period", "type": "double"},
+        { "index": 15, "name": "accessflag", "type": "bool"}
       ]      
     }
 }

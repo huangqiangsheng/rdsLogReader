@@ -269,7 +269,7 @@ class Data:
             except:
                 data.append(values[ind])
         else:
-            data.apeend(values[ind])
+            data.append(values[ind])
     def parse(self, line, num):
         if self.short_regx in line:
             out = self.regex.match(line)

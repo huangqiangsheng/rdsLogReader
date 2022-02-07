@@ -130,7 +130,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.help_menu.addAction('&About', self.about)
         self.menuBar().addMenu(self.help_menu)
 
-        self._main = Widget(self)  #主窗口
+        self._main = Widget()  #主窗口
         self._main.dropped.connect(self.dragFiles)
         self.setCentralWidget(self._main)
         self.layout = QtWidgets.QVBoxLayout(self._main)
@@ -231,13 +231,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.check_all.setChecked(True)
 
         # dataView相关的初始化
-        self.dataView = DataView(self)
+        self.dataView = DataView()
         self.dataView.hiddened.connect(self.dataViewerClosed)
         self.dataView.selection.car_combo.activated.connect(self.dataView_robot_combo_onActivate)
         self.dataView.selection.y_combo.activated.connect(self.dataView_robot_combo_onActivate)
-        
         self.dataView.setGeometry(850,50,400,900)
         self.dataView.show()
+    
+        self.map_widget = MapWidget()
+        self.map_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
+        self.map_widget.hiddened.connect(self.mapClosed)
+        self.map_widget.keyPressEvent = self.keyPressEvent
 
     def static_canvas_resizeEvent(self, event):
         self.static_canvas_ORG_resizeEvent(event)
@@ -412,24 +416,24 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.updateLogView()
         self.updateJsonView()
         self.updateDataView()
-        if self.map_widget:
-            if self.filenames:
-                full_map_name = None
-                dir_name, _ = os.path.split(self.filenames[0])
-                pdir_name, _ = os.path.split(dir_name)
-                map_dir = os.path.join(pdir_name,"scene")
-                if os.path.isdir(map_dir):
-                    full_map_name = os.path.join(map_dir,"scene")
-                    if not os.path.isdir(full_map_name):
-                        zip_name = os.path.join(map_dir, "scene.zip")
-                        print("extract ", zip_name)
-                        fz = zipfile.ZipFile(zip_name, 'r')
-                        for file in fz.namelist():
-                            fz.extract(file, full_map_name)      
-                    else:
-                        print("use org scene file")
-                    full_map_name = os.path.join(full_map_name,"rds.scene")
-                    self.map_widget.readFiles([full_map_name])   
+
+        if self.filenames:
+            full_map_name = None
+            dir_name, _ = os.path.split(self.filenames[0])
+            pdir_name, _ = os.path.split(dir_name)
+            map_dir = os.path.join(pdir_name,"scene")
+            if os.path.isdir(map_dir):
+                full_map_name = os.path.join(map_dir,"scene")
+                if not os.path.isdir(full_map_name):
+                    zip_name = os.path.join(map_dir, "scene.zip")
+                    print("extract ", zip_name)
+                    fz = zipfile.ZipFile(zip_name, 'r')
+                    for file in fz.namelist():
+                        fz.extract(file, full_map_name)      
+                else:
+                    print("use org scene file")
+                full_map_name = os.path.join(full_map_name,"rds.scene")
+                self.map_widget.readFiles([full_map_name])   
 
         for robot in self.read_thread.content['rTopoPos'].data:
             loc_idx = -1
@@ -437,18 +441,34 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             loc_idx = (np.abs(loc_ts - self.mid_line_t)).argmin()
             if loc_idx < 1:
                 loc_idx = 1
-            if self.map_widget:
-                self.map_widget.readtrajectory(robot,
-                    self.read_thread.content['rTopoPos'].data[robot]['x'][0:loc_idx], 
-                    self.read_thread.content['rTopoPos'].data[robot]['y'][0:loc_idx],
-                    self.read_thread.content['rTopoPos'].data[robot]['x'][loc_idx::], 
-                    self.read_thread.content['rTopoPos'].data[robot]['y'][loc_idx::],
-                    self.read_thread.content['rTopoPos'].data[robot]['x'][loc_idx], 
-                    self.read_thread.content['rTopoPos'].data[robot]['y'][loc_idx], 
-                    np.deg2rad(self.read_thread.content['rTopoPos'].data[robot]['theta'][loc_idx]))     
-        
-        if self.map_widget:
-            self.map_widget.redraw()
+            max_idx = 100
+            ploc_idx = loc_idx
+            nloc_idx = loc_idx
+            cur_area_name = self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx]
+            for idx in range(loc_idx):
+                if self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx - idx - 1] != cur_area_name:
+                    ploc_idx = loc_idx - idx
+                    break
+                if idx > max_idx:
+                    ploc_idx = loc_idx - idx - 1
+                    break
+            for idx in range(loc_idx):
+                if self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx + idx + 1] != cur_area_name:
+                    nloc_idx = loc_idx + idx
+                    break
+                if idx > max_idx:
+                    nloc_idx = loc_idx + idx + 1
+                    break            
+            self.map_widget.readtrajectory(robot,
+                self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx],
+                self.read_thread.content['rTopoPos'].data[robot]['x'][ploc_idx:loc_idx], 
+                self.read_thread.content['rTopoPos'].data[robot]['y'][ploc_idx:loc_idx],
+                self.read_thread.content['rTopoPos'].data[robot]['x'][loc_idx:nloc_idx], 
+                self.read_thread.content['rTopoPos'].data[robot]['y'][loc_idx:nloc_idx],
+                self.read_thread.content['rTopoPos'].data[robot]['x'][loc_idx], 
+                self.read_thread.content['rTopoPos'].data[robot]['y'][loc_idx], 
+                np.deg2rad(self.read_thread.content['rTopoPos'].data[robot]['theta'][loc_idx]))           
+        self.map_widget.redraw()
 
     def mouse_press(self, event):
         self.mouse_pressed = True
@@ -500,6 +520,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         if type(mouse_time) is not datetime:
             mouse_time = mtime * 86400 - 62135712000
             mouse_time = datetime.fromtimestamp(mouse_time)
+            self.mid_line_t = mouse_time
+        else:
             self.mid_line_t = mouse_time
         self.updateMap()
 
@@ -1047,19 +1069,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.check_service.setChecked(False)
 
     def openMap(self, checked):
+        # print("checked: ", checked, self.map_widget)
         if checked:
-            if not self.map_widget:
-                self.map_widget = MapWidget(self)
-                self.map_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
-                self.map_widget.hiddened.connect(self.mapClosed)
-                self.map_widget.keyPressEvent = self.keyPressEvent
             self.map_widget.show()
             self.updateMap()
         else:
-            if self.map_widget:
-                self.map_widget.hide()
-                for ln in self.map_select_lines:
-                    ln.set_visible(False)
+            self.map_widget.hide()
         self.static_canvas.figure.canvas.draw()
 
     def updateMidLine(self):
@@ -1134,9 +1149,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.static_canvas.figure.canvas.draw()
 
     def mapClosed(self,info):
+        # print("hide map")
         self.map_widget.hide()
-        for ln in self.map_select_lines:
-            ln.set_visible(False)
+        # for ln in self.map_select_lines:
+        #     ln.set_visible(False)
         self.map_action.setChecked(False)
         self.openMap(False)
 
@@ -1153,12 +1169,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.openData(False)
 
     def closeEvent(self, event):
-        if self.map_widget:
-            self.map_widget.close()
+        self.map_widget.close()
         if self.log_widget:
             self.log_widget.close()
         if self.sts_widget:
             self.sts_widget.close()
+        self.dataView.close()
         self.close()
 
 

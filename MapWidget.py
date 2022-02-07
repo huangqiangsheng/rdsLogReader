@@ -1,4 +1,5 @@
 from multiprocessing import set_forkserver_preload
+from tkinter.messagebox import NO
 import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import (
@@ -8,6 +9,7 @@ import matplotlib.lines as lines
 import matplotlib.text as mtext
 from matplotlib.patches import Circle, Polygon
 from PyQt5 import QtGui, QtCore,QtWidgets
+from PyQt5.QtCore import *
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 import numpy as np
 import json as js
@@ -48,6 +50,7 @@ class RobotModel:
         self.width = None
         self.pos = [None,None,None]
         self.name = None
+        self.areaName = None
         self.cur_arrow = patches.FancyArrow(0, 0, 0.3, 0,
                                             length_includes_head=True,# 增加的长度包含箭头部分
                                             width=0.05,
@@ -61,8 +64,9 @@ class RobotModel:
         self.trajectory_next = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='mediumpurple')
         self.robot_text = mtext.Text(0,0, "")
 
-    def updateByPos(self):
-
+    def updateByPos(self, areaName = None):
+        if self.head is None or self.pos[0] is None:
+            return
         xdata = [-self.tail, -self.tail, self.head, self.head, -self.tail]
         ydata = [self.width/2, -self.width/2, -self.width/2, self.width/2, self.width/2]
         robot_shape = np.array([xdata, ydata])
@@ -88,8 +92,17 @@ class RobotModel:
         data = data + [x0, y0]
         self.cur_arrow.set_xy(data)
 
-        self.robot_text.set_x(x0)
-        self.robot_text.set_y(y0)
+        self.robot_text.set_x(robot_shape[0][0])
+        self.robot_text.set_y(robot_shape[1][0])
+        print(areaName, self.areaName)
+        if areaName is not None:
+            show = self.areaName == areaName
+            self.robot_text.set_visible(show)
+            self.cur_arrow.set_visible(show)
+            self.robot_data.set_visible(show)
+            self.robot_data_c0.set_visible(show)
+            self.trajectory.set_visible(show)
+            self.trajectory_next.set_visible(show)
     
     def clear_artist(self):
         self.robot_text.remove()
@@ -141,18 +154,22 @@ class RobotModel:
             else:
                 logging.error('Cannot Open robot.model: ' + name)        
 
+class AreaData:
+    def __init__(self) -> None:
+        self.lines = []
+        self.circles = []
+        self.points = []
+        self.straights = []
+        self.p_names = []
+        self.map_x = []
+        self.map_y = []
 class Readmap(QThread):
     signal = pyqtSignal('PyQt_PyObject')
     def __init__(self):
         QThread.__init__(self)
         self.map_name = ''
         self.js = dict()
-        self.map_x = []
-        self.map_y = []
-        self.lines = []
-        self.circles = []
-        self.points = []
-        self.straights = []
+        self.map_data = dict()
         self.bezier_codes = [ 
             Path.MOVETO,
             Path.CURVE4,
@@ -169,15 +186,9 @@ class Readmap(QThread):
         fid = open(self.map_name, encoding= 'UTF-8')
         self.js = js.load(fid)
         fid.close()
-        self.map_x = []
-        self.map_y = []
-        self.lines = []
-        self.circles = []
-        self.straights = []
-        self.points = []
-        self.p_names = []
+        self.map_data = dict()
         # print(self.js.keys())
-        def addStr(startPos, endPos):
+        def addStr(areadata, startPos, endPos):
             x1 = 0
             y1 = 0
             x2 = 0
@@ -190,7 +201,7 @@ class Readmap(QThread):
                 x2 = endPos['x']
             if 'y' in endPos:
                 y2 = endPos['y']
-            self.straights.append([(x1,y1),(x2,y2)])
+            areadata.straights.append([(x1,y1),(x2,y2)])
         def f3order(p0, p1, p2, p3):
             dt = 0.001
             t = 0
@@ -220,6 +231,9 @@ class Readmap(QThread):
                 t = t + dt
             return v 
         for area in self.js["areas"]:
+            areadata = AreaData()
+            print("areaname:",area["name"])
+            self.map_data[area["name"]] = areadata
             logicMap = area["logicalMap"]
             if 'advancedCurves' in logicMap:
                 for line in logicMap['advancedCurves']:
@@ -258,7 +272,7 @@ class Readmap(QThread):
                             xs = np.array(f5order(x0, x1, x1, x2, x2, x3))
                             ys = np.array(f5order(y0, y1, y1, y2, y2, y3))
                         points = np.vstack((xs,ys))  
-                        self.lines.append(points.T)
+                        areadata.lines.append(points.T)
                     elif line['className'] == 'ArcPath':
                         x1 = 0
                         y1 = 0
@@ -292,13 +306,13 @@ class Readmap(QThread):
                             v2 = np.array([x3-x2,y3-y2])
                             flag = float(np.cross(v1,v2))
                             if flag >= 0:
-                                self.circles.append([x, y, r, np.rad2deg(theta1), np.rad2deg(theta3)])
+                                areadata.circles.append([x, y, r, np.rad2deg(theta1), np.rad2deg(theta3)])
                             else:
-                                self.circles.append([x, y, r, np.rad2deg(theta3), np.rad2deg(theta1)])
+                                areadata.circles.append([x, y, r, np.rad2deg(theta3), np.rad2deg(theta1)])
                         else:
-                            self.straights.append([(x1,y1),(x3,y3)])
+                            areadata.straights.append([(x1,y1),(x3,y3)])
                     elif line['className'] == 'StraightPath':
-                        addStr(line['startPos']['pos'],line['endPos']['pos'])
+                        addStr(areadata, line['startPos']['pos'],line['endPos']['pos'])
             if 'primitiveList' in logicMap:
                 for line in logicMap['primitiveList']:
                     if line['className'] == 'RoundLine':
@@ -318,9 +332,9 @@ class Readmap(QThread):
                             r1 = math.hypot(cL[1]['x'] - cL[2]['x'], cL[1]['y'] - cL[2]['y'])
                             r = (r0 + r1)/2.0
                             if angle1 < angle3:
-                                self.circles.append([cL[1]['x'], cL[1]['y'], r, np.rad2deg(angle1), np.rad2deg(angle3)])
+                                areadata.circles.append([cL[1]['x'], cL[1]['y'], r, np.rad2deg(angle1), np.rad2deg(angle3)])
                             else:
-                                self.circles.append([cL[1]['x'], cL[1]['y'], r, np.rad2deg(angle3), np.rad2deg(angle1)])
+                                areadata.circles.append([cL[1]['x'], cL[1]['y'], r, np.rad2deg(angle3), np.rad2deg(angle1)])
             if 'advancedPoints' in logicMap:
                 for pt in logicMap['advancedPoints']:
                     x0 = 0
@@ -335,11 +349,10 @@ class Readmap(QThread):
                     if  'ignoreDir' in pt:
                         if pt['ignoreDir'] == True:
                             theta = None
-                    self.points.append([x0,y0,theta])
-                    self.p_names.append([pt['instanceName']])
-                    self.map_x.append(x0)
-                    self.map_y.append(y0)
-            break
+                    areadata.points.append([x0,y0,theta])
+                    areadata.p_names.append([pt['instanceName']])
+                    areadata.map_x.append(x0)
+                    areadata.map_y.append(y0)
         for k in self.robots.keys():
             self.robots[k].clear_artist()
         self.robots.clear()
@@ -355,8 +368,8 @@ class Readmap(QThread):
 
 class PointWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
-    def __init__(self):
-        super(QtWidgets.QWidget, self).__init__()
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
         self.x_label = QtWidgets.QLabel('x(m)')
         self.y_label = QtWidgets.QLabel('y(m)')
         valid = QtGui.QDoubleValidator()
@@ -387,8 +400,8 @@ class PointWidget(QtWidgets.QWidget):
 
 class LineWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
-    def __init__(self):
-        super(QtWidgets.QWidget, self).__init__()
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
         self.groupBox1 = QtWidgets.QGroupBox('P1')
         x_label = QtWidgets.QLabel('x(m)')
         y_label = QtWidgets.QLabel('y(m)')
@@ -444,8 +457,8 @@ class LineWidget(QtWidgets.QWidget):
 
 class CurveWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
-    def __init__(self):
-        super(QtWidgets.QWidget, self).__init__()
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
         self.data_label = QtWidgets.QLabel('Script: x,y,linestype,marker,markersize,color:')
         self.data_edit = QtWidgets.QTextEdit()
         self.btn = QtWidgets.QPushButton("Yes")
@@ -455,6 +468,7 @@ class CurveWidget(QtWidgets.QWidget):
         vbox.addWidget(self.data_edit)
         vbox.addWidget(self.btn)
         self.setWindowTitle("Curve Input")
+        self.show()
 
     def getData(self):
         code = self.data_edit.toPlainText()
@@ -477,13 +491,12 @@ class MapWidget(QtWidgets.QWidget):
     dropped = pyqtSignal('PyQt_PyObject')
     hiddened = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent=None):
-        super(QtWidgets.QWidget, self).__init__(parent)
+        super().__init__(parent)
         self.setWindowTitle('MapViewer')
         self.map_name = None
         self.model_name = None
         self.cp_name = None
         self.draw_size = [] #xmin xmax ymin ymax
-        self.map_data = lines.Line2D([],[], marker = '.', linestyle = '', markersize = 1.0)
         self.check_draw_flag = False
         self.fig_ratio = 1.0
         self.setAcceptDrops(True)
@@ -493,6 +506,8 @@ class MapWidget(QtWidgets.QWidget):
         self.setupUI()
         self.pointLists = dict()
         self.lineLists = dict()
+        self.mapData = dict()
+        self.cur_area = None
 
     def setupUI(self):
         self.static_canvas = FigureCanvas(Figure(figsize=(5,5)))
@@ -500,7 +515,6 @@ class MapWidget(QtWidgets.QWidget):
         self.static_canvas.figure.subplots_adjust(left = 0.0, right = 1.0, bottom = 0.0, top = 1.0)
         self.static_canvas.figure.tight_layout()
         self.ax= self.static_canvas.figure.subplots(1, 1)
-        self.ax.add_line(self.map_data)
         self.ruler = RulerShape()
         self.ruler.add_ruler(self.ax)
         MyToolBar.home = self.toolbarHome
@@ -526,18 +540,26 @@ class MapWidget(QtWidgets.QWidget):
         self.userToolbar.addSeparator()
         self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_clear])
 
-        self.getPoint = PointWidget()
+        self.scenceToolBar = QtWidgets.QToolBar(self)
+        self.areaGroup = QtWidgets.QActionGroup(self)
+        # self.scenceToolBar.addAction(self.areaGroup)
+
+        self.getPoint = PointWidget(self)
         self.getPoint.getdata.connect(self.getPointData)
         self.getPoint.hide()
-        self.getLine = LineWidget()
+        self.getPoint.setWindowFlags(Qt.Window)
+        self.getLine = LineWidget(self)
         self.getLine.getdata.connect(self.getLineData)
         self.getLine.hide()
-        self.getCurve = CurveWidget()
+        self.getLine.setWindowFlags(Qt.Window)
+        self.getCurve = CurveWidget(self)
         self.getCurve.getdata.connect(self.getCurveData)
         self.getCurve.hide()
+        self.getCurve.setWindowFlags(Qt.Window)
         self.autoMap.setChecked(True)
         self.fig_layout = QtWidgets.QVBoxLayout(self)
         self.fig_layout.addWidget(self.toolbar)
+        self.fig_layout.addWidget(self.scenceToolBar)
         self.fig_layout.addWidget(self.userToolbar)
         self.fig_layout.addWidget(self.static_canvas)
         self.static_canvas.mpl_connect('resize_event', self.resize_fig)
@@ -608,9 +630,10 @@ class MapWidget(QtWidgets.QWidget):
                 self.lineLists[l] = None
         self.static_canvas.figure.canvas.draw()    
 
-    def closeEvent(self,event):
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.hide()
         self.hiddened.emit(True)
+        return super().closeEvent(a0)
 
     def toolbarHome(self, *args, **kwargs):
         if len(self.draw_size) == 4:
@@ -663,6 +686,7 @@ class MapWidget(QtWidgets.QWidget):
         new_map = False
         for file in files:
             if file and os.path.exists(file):
+                print(file)
                 if self.smap_action.isEnabled() and os.path.splitext(file)[1] == ".scene":
                     self.map_name = file
                     new_map = True
@@ -686,54 +710,97 @@ class MapWidget(QtWidgets.QWidget):
             print("start here!!!")
             self.read_map.start()
 
+    def changeArea(self, event):
+        for a in self.areaGroup.actions():
+            if a.isChecked():
+                self.cur_area = a.text()
+        self.autoUpdateArea()
+
+    def autoUpdateArea(self):
+        for k in self.mapData:
+            show =  k == self.cur_area
+            print("mapData:", self.cur_area, k, show)
+            for e in self.mapData[k]:
+                e.set_visible(show)
+
+        map_data = self.read_map.map_data[self.cur_area]
+        xmin = min(map_data.map_x)
+        xmax = max(map_data.map_x)
+        ymin = min(map_data.map_y)
+        ymax = max(map_data.map_y)
+        print(xmin, xmax, ymin, ymax)
+        if xmax - xmin > ymax - ymin:
+            ds = xmax - xmin - ymax + ymin
+            ymax = ymax + ds /2.0
+            ymin = ymin - ds /2.0
+        else:
+            ds = ymax - ymin - xmax + xmin
+            xmax = xmax + ds /2.0
+            xmin = xmin - ds /2.0
+        map_size = xmax - xmin
+        print(xmin, xmax, ymin, ymax)
+        xmin = xmin - map_size * 0.1
+        xmax = xmax + map_size * 0.1
+        ymin = ymin - map_size * 0.1
+        ymax = ymax + map_size * 0.1
+        self.draw_size = [xmin, xmax, ymin, ymax]
+        # print(self.draw_size[1] - self.draw_size[0], self.draw_size[3] - self.draw_size[2])
+        self.ax.set_xlim(xmin, xmax)
+        self.ax.set_ylim(ymin, ymax)
+        for name in self.read_map.robots:
+            self.read_map.robots[name].updateByPos(self.cur_area)
+        self.static_canvas.figure.canvas.draw()
+
     def readMapFinished(self, result):
-        print("result", result)
-        if len(self.read_map.map_x) > 0:
-            self.map_data.set_xdata(self.read_map.map_x)
-            self.map_data.set_ydata(self.read_map.map_y)
+        if len(self.read_map.map_data) > 0:
             self.ax.grid(True)
             self.ax.axis('auto')
-            xmin = min(self.read_map.map_x)
-            xmax = max(self.read_map.map_x)
-            ymin = min(self.read_map.map_y)
-            ymax = max(self.read_map.map_y)
-            if xmax - xmin > ymax - ymin:
-                ymax = ymin + xmax - xmin
-            else:
-                xmax = xmin + ymax - ymin
-            map_size = xmax - xmin
-            xmin = xmin - map_size * 0.1
-            xmax = xmax + map_size * 0.1
-            ymin = ymin - map_size * 0.1
-            ymax = ymax + map_size * 0.1
-            self.draw_size = [xmin, xmax, ymin, ymax]
-            self.ax.set_xlim(xmin, xmax)
-            self.ax.set_ylim(ymin, ymax)
             [p.remove() for p in reversed(self.ax.patches)]
             [p.remove() for p in reversed(self.ax.texts)]
             [p.remove() for p in reversed(self.ax.lines)]
-            for line in self.read_map.lines:
-                path = Polygon(line, closed=False, facecolor='none', edgecolor='orange', lw=1)
-                self.ax.add_patch(path)
-            for circle in self.read_map.circles:
-                wedge = patches.Arc([circle[0], circle[1]], circle[2]*2, circle[2]*2, 0, circle[3], circle[4], facecolor = 'none', ec="orange", lw = 3)
-                self.ax.add_patch(wedge)
-            for vert in self.read_map.straights:
-                path = Path(vert, self.read_map.straight_codes)
-                patch = patches.PathPatch(path, facecolor='none', edgecolor='orange', lw=3)
-                self.ax.add_patch(patch)
-            pr = 0.25
-            for (pt,name) in zip(self.read_map.points, self.read_map.p_names):
-                circle = patches.Circle((pt[0], pt[1]), pr, facecolor='orange',
-                edgecolor=(0, 0.8, 0.8), linewidth=3, alpha=0.5)
-                self.ax.add_patch(circle)
-                text_path = TextPath((pt[0],pt[1]), name[0], size = 0.2)
-                text_path = patches.PathPatch(text_path, ec="none", lw=3, fc="k")
-                self.ax.add_patch(text_path)
-                if pt[2] != None:
-                    arrow = patches.Arrow(pt[0],pt[1], pr * np.cos(pt[2]), pr*np.sin(pt[2]), pr)
-                    self.ax.add_patch(arrow)
+            self.mapData = dict()
+            for area_name in self.read_map.map_data:
+                map_data = self.read_map.map_data[area_name]
+                self.mapData[area_name] = []
+                for line in map_data.lines:
+                    path = Polygon(line, closed=False, facecolor='none', edgecolor='orange', lw=1)
+                    self.mapData[area_name].append(path)
+                    self.ax.add_patch(path)
+                for circle in map_data.circles:
+                    wedge = patches.Arc([circle[0], circle[1]], circle[2]*2, circle[2]*2, 0, circle[3], circle[4], facecolor = 'none', ec="orange", lw = 3)
+                    self.mapData[area_name].append(wedge)
+                    self.ax.add_patch(wedge)
+                for vert in map_data.straights:
+                    path = Path(vert, self.read_map.straight_codes)
+                    patch = patches.PathPatch(path, facecolor='none', edgecolor='orange', lw=3)
+                    self.mapData[area_name].append(patch)
+                    self.ax.add_patch(patch)
+                pr = 0.25
+                for (pt,name) in zip(map_data.points, map_data.p_names):
+                    circle = patches.Circle((pt[0], pt[1]), pr, facecolor='orange',
+                    edgecolor=(0, 0.8, 0.8), linewidth=3, alpha=0.5)
+                    self.mapData[area_name].append(circle)
+                    self.ax.add_patch(circle)
+                    text_path = TextPath((pt[0],pt[1]), name[0], size = 0.2)
+                    text_path = patches.PathPatch(text_path, ec="none", lw=3, fc="k")
+                    self.mapData[area_name].append(text_path)
+                    self.ax.add_patch(text_path)
+                    if pt[2] != None:
+                        arrow = patches.Arrow(pt[0],pt[1], pr * np.cos(pt[2]), pr*np.sin(pt[2]), pr)
+                        self.mapData[area_name].append(arrow)
+                        self.ax.add_patch(arrow)
 
+                tmp_action = QtWidgets.QAction(area_name, self.scenceToolBar)
+                tmp_action.triggered.connect(self.changeArea)
+                self.scenceToolBar.addAction(tmp_action)
+                self.areaGroup.addAction(tmp_action)
+                tmp_action.setCheckable(True)
+
+                if self.cur_area is None:
+                    self.cur_area = area_name
+                if area_name is self.cur_area:
+                    tmp_action.setChecked(True)
+            self.autoUpdateArea()
             ## model
             for k in self.read_map.robots.keys():
                 r = self.read_map.robots[k]
@@ -741,7 +808,9 @@ class MapWidget(QtWidgets.QWidget):
                     r.pos[0] = random.uniform(self.draw_size[0],  self.draw_size[1])
                     r.pos[1] = random.uniform(self.draw_size[2],  self.draw_size[3])
                     r.pos[2] = random.uniform(-3.14,  3.14)
-                    r.updateByPos()
+                if r.areaName is None:
+                    r.areaName = self.cur_area
+                r.updateByPos(self.cur_area)
                 self.ax.add_line(r.robot_data)
                 self.ax.add_line(r.robot_data_c0)
                 self.ax.add_patch(r.cur_arrow) #add robot arrow again
@@ -755,9 +824,10 @@ class MapWidget(QtWidgets.QWidget):
             self.smap_action.setFont(font)
             self.static_canvas.figure.canvas.draw()
     
-    def readtrajectory(self, name, x, y, xn, yn, x0, y0, r0):
+    def readtrajectory(self, name, areaName, x, y, xn, yn, x0, y0, r0):
         if name in self.read_map.robots:
             r = self.read_map.robots[name]
+            r.areaName = areaName
             r.trajectory.set_xdata(x)
             r.trajectory.set_ydata(y)
             r.trajectory_next.set_xdata(xn)
@@ -765,8 +835,7 @@ class MapWidget(QtWidgets.QWidget):
             r.pos[0] = x0
             r.pos[1] = y0
             r.pos[2] = r0
-            print(name, x0, y0, r0)
-            r.updateByPos()
+            r.updateByPos(self.cur_area)
             if len(self.draw_size) != 4:
                 xmax = max(x) + 10 
                 xmin = min(x) - 10
@@ -778,6 +847,9 @@ class MapWidget(QtWidgets.QWidget):
 
     def redraw(self):
         self.static_canvas.figure.canvas.draw()
+    
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        return super().closeEvent(a0)
 
 if __name__ == '__main__':
     import sys
