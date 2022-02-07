@@ -208,29 +208,70 @@ class DataSelection:
         self.vbox.addLayout(car_form)
 
 class DataView(QtWidgets.QMainWindow):
-    hiddened = pyqtSignal('PyQt_PyObject')
+    closeMsg = pyqtSignal('PyQt_PyObject')
+    newOneMsg = pyqtSignal('PyQt_PyObject')
+    dataViewMsg = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent =None):
+        self.parent = parent
         super().__init__(parent)
         self.setWindowTitle("DataView")
         self._main = QtWidgets.QWidget()
         self.setCentralWidget(self._main)
         self.layout = QtWidgets.QVBoxLayout(self._main)
+        self.newbtn = QtWidgets.QPushButton("new",self._main)
+        self.newbtn.clicked.connect(self.newOne)
+        self.layout.addWidget(self.newbtn)
         self.selection = DataSelection()
         self.layout.addLayout(self.selection.vbox)
         self.jsonView = JsonView()
         self.layout.addWidget(self.jsonView)
+        self.selection.car_combo.activated.connect(self.dataViewUpdate)
+        self.selection.y_combo.activated.connect(self.dataViewUpdate)
+
     def loadJson(self, data):
         self.jsonView.loadJson(data)
         self.jsonView.expandToDepth(1)
+
     def loadJsonFile(self, fileName):
         self.jsonView.loadJsonFile(fileName)
-        self.jsonView.expandToDepth(1)
-    def closeEvent(self, event):
-        self.hide()
-        self.hiddened.emit(True)    
+        self.jsonView.expandToDepth(1)    
+
     def setSelectionItems(self, car, data):
         self.selection.car_combo.addItems(car)
         self.selection.y_combo.addItems(data)
+        robot = self.selection.car_combo.currentText()
+        first_k = self.selection.y_combo.currentText()
+        if robot is not "" and first_k is not "":
+            self.setWindowTitle(robot+"."+first_k)  
+
+    def setYItems(self, data):
+        last_first_k = self.selection.y_combo.currentText()
+        self.selection.y_combo.clear()
+        self.selection.y_combo.addItems(data)
+        robot = self.selection.car_combo.currentText()
+        first_k = self.selection.y_combo.currentText()
+        if robot is not "" and first_k is not "":
+            self.setWindowTitle(robot+"."+first_k) 
+        if last_first_k != first_k:
+            self.dataViewUpdate()
+
+
+    def setCarItems(self, car):
+        self.selection.car_combo.addItems(car)
+
+    def newOne(self):
+        self.newOneMsg.emit(self)
+
+    def dataViewUpdate(self):
+        robot = self.selection.car_combo.currentText()
+        first_k = self.selection.y_combo.currentText()
+        if robot is not "" and first_k is not "":
+            self.setWindowTitle(robot+"."+first_k)
+        self.dataViewMsg.emit(self)
+
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        self.closeMsg.emit(self)
+        return super().closeEvent(a0)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

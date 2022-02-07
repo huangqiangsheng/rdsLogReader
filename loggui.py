@@ -58,7 +58,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.map_widget = None
         self.log_widget = None
         self.sts_widget = None
-        self.dataView = None #显示特定数据框
+        self.dataViews = [] #显示特定数据框
         self.setupUI()
 
     def setupUI(self):
@@ -123,7 +123,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.data_action = QtWidgets.QAction('&Open Data', self.tools_menu, checkable = True)
         self.data_action.setShortcut(QtCore.Qt.CTRL + QtCore.Qt.Key_D)
         self.data_action.setChecked(True)
-        self.data_action.triggered.connect(self.openData)
+        self.data_action.triggered.connect(self.openDataView)
         self.tools_menu.addAction(self.data_action)
 
         self.help_menu = QtWidgets.QMenu('&Help', self)
@@ -231,12 +231,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.check_all.setChecked(True)
 
         # dataView相关的初始化
-        self.dataView = DataView()
-        self.dataView.hiddened.connect(self.dataViewerClosed)
-        self.dataView.selection.car_combo.activated.connect(self.dataView_robot_combo_onActivate)
-        self.dataView.selection.y_combo.activated.connect(self.dataView_robot_combo_onActivate)
-        self.dataView.setGeometry(850,50,400,900)
-        self.dataView.show()
+        self.dataViewNewOne(None)
     
         self.map_widget = MapWidget()
         self.map_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
@@ -381,9 +376,19 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     j["notices"] = self.read_thread.rstatus.notices()[0][idx]
             self.sts_widget.loadJson(j)
 
-    def updateDataView(self):
-        robot = self.dataView.selection.car_combo.currentText()
-        first_k = self.dataView.selection.y_combo.currentText()
+    def getValidYItems(self,robot):
+        yitems = []
+        for y in self.read_thread.content:
+            if robot in self.read_thread.content[y].data:
+                value = self.read_thread.content[y].data[robot]
+                t = self.read_thread.content[y].data[robot]['t']    
+                if value is not None and t is not None:
+                    yitems.append(y)
+        return yitems
+
+    def updateDataView(self, d:DataView):
+        robot = d.selection.car_combo.currentText()
+        first_k = d.selection.y_combo.currentText()
         value = None
         t = None
         if first_k in self.read_thread.content \
@@ -391,7 +396,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             value = self.read_thread.content[first_k].data[robot]
             t = self.read_thread.content[first_k].data[robot]['t']
         if value is None or t is None:
+            yitems = self.getValidYItems(robot)
+            d.setYItems(yitems)
             return
+
         ts = np.array(t)
         idx = (np.abs(ts - self.mid_line_t)).argmin()
         j = dict()
@@ -407,15 +415,19 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 if "terminalTime" in j[k]:
                     if isinstance(j[k]["terminalTime"], int):
                         j[k]["terminalTime"] = datetime.fromtimestamp(j[k]["terminalTime"])
-        self.dataView.loadJson(j)
-        
+        d.loadJson(j)
+
+    def updateDataViews(self):
+        for d in self.dataViews:
+            self.updateDataView(d)
+
     def updateMap(self):
         if self.mid_line_t is None:
             return
         self.updateMapSelectLine()
         self.updateLogView()
         self.updateJsonView()
-        self.updateDataView()
+        self.updateDataViews()
 
         if self.filenames:
             full_map_name = None
@@ -805,7 +817,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 xys.y_combo.addItems(self.read_thread.data_keys)
                 if last_combo_ind >= 0:
                     xys.y_combo.setCurrentIndex(last_combo_ind)
-            self.dataView.setSelectionItems(self.read_thread.robot_keys, self.read_thread.group_keys)
+            for d in self.dataViews:
+                self.initDataView(d)
 
             for i, ax in enumerate(self.axs):
                     self.drawdata(ax, self.xys[i].car_combo.currentText(), 
@@ -816,7 +829,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.openMap(self.map_action.isChecked())
             self.openViewer(self.view_action.isChecked())
             self.openJsonView(self.json_action.isChecked())
-            self.openData(self.data_action.isChecked())
+            self.openDataView(self.data_action.isChecked())
             self.updateMap()
 
 
@@ -852,11 +865,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
         self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False)
 
-
-    def dataView_robot_combo_onActivate(self):
-        self.updateDataView()
-
-        # logging.info('Fig.' + str(index+1) + ' : ' + text + ' ' + 't')
 
 
     def cpunum_changed(self, action):
@@ -1125,11 +1133,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             if self.log_widget:
                 self.log_widget.hide() 
     
-    def openData(self, checked):
-        if checked:
-            self.dataView.show()
+    def openDataView(self, flag):
+        if flag:
+            if len(self.dataViews) < 1:
+                self.dataViewNewOne(None)
         else:
-            self.dataView.hide()
+            if len(self.dataViews) > 0:
+                self.data_action.setChecked(True)
 
     def openJsonView(self, checked):
         if checked:
@@ -1163,10 +1173,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def jsonViewerClosed(self, event):
         self.json_action.setChecked(False)
         self.openJsonView(False)
-    
-    def dataViewerClosed(self, event):
-        self.data_action.setChecked(False)
-        self.openData(False)
 
     def closeEvent(self, event):
         self.map_widget.close()
@@ -1174,9 +1180,28 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.log_widget.close()
         if self.sts_widget:
             self.sts_widget.close()
-        self.dataView.close()
+        for d in self.dataViews:
+            d.close()
         self.close()
 
+    def dataViewClosed(self, other):
+        self.dataViews.remove(other)
+        if len(self.dataViews) < 1:
+            self.data_action.setChecked(False)
+    
+    def dataViewNewOne(self, other):
+        dataView = DataView()
+        dataView.closeMsg.connect(self.dataViewClosed)
+        dataView.newOneMsg.connect(self.dataViewNewOne)
+        dataView.dataViewMsg.connect(self.updateDataView)
+        dataView.setGeometry(850,50,400,900)
+        dataView.show()
+        self.initDataView(dataView)
+        self.dataViews.append(dataView)  
+        self.updateDataView(dataView) 
+
+    def initDataView(self, d:DataView):
+        d.setSelectionItems(self.read_thread.robot_keys, self.read_thread.group_keys)   
 
 if __name__ == "__main__":
     freeze_support()
