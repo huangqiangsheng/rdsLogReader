@@ -459,6 +459,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             nloc_idx = loc_idx
             cur_area_name = self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx]
             for idx in range(loc_idx):
+                if loc_idx - idx - 1 < 0:
+                    ploc_idx = 0
                 if self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx - idx - 1] != cur_area_name:
                     ploc_idx = loc_idx - idx
                     break
@@ -466,6 +468,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     ploc_idx = loc_idx - idx - 1
                     break
             for idx in range(loc_idx):
+                if loc_idx + idx + 1 >= len(self.read_thread.content['GET'].data[robot]['cu_area_name']):
+                    nloc_idx = len(self.read_thread.content['GET'].data[robot]['cu_area_name']) - 1
+                    break
                 if self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx + idx + 1] != cur_area_name:
                     nloc_idx = loc_idx + idx
                     break
@@ -836,7 +841,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.close()
 
     def about(self):
-        QtWidgets.QMessageBox.about(self, "关于", """Log Viewer V2.2.1a""")
+        QtWidgets.QMessageBox.about(self, "关于", """Log Viewer V2.3.1a""")
 
     def ycombo_onActivated(self):
         curcombo = self.sender()
