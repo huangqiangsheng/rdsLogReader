@@ -129,7 +129,8 @@ class ReadThread(QThread):
                         if name != 't' and name[0] != '_':
                             if len(self.content[k].data[robot][name]) > 0 \
                                 and (isinstance(self.content[k].data[robot][name][0], int) \
-                                    or isinstance(self.content[k].data[robot][name][0], float)):
+                                    or isinstance(self.content[k].data[robot][name][0], float)) \
+                                        or isinstance(self.content[k].data[robot][name][0], str):
                                 self.data_keys.add(k+'.'+name)
             self.robot_keys = list(robot_name)
             self.data_keys = sorted(self.data_keys)

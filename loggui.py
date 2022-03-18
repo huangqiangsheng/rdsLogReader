@@ -947,11 +947,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 t = self.read_thread.content[first_k].data[robot]['t']
             if value and t:
                 ax.plot(t, value, '.')
-                tmpd = np.array(value)
-                tmpd = tmpd[~np.isnan(tmpd)]
-                if len(tmpd) > 0:
-                    max_range = max(max(tmpd) - min(tmpd), 1.0)
-                    ax.set_ylim(min(tmpd) - 0.05 * max_range, max(tmpd) + 0.05 * max_range)
+                if len(value) > 0 and isinstance(value[0], (int, float)):
+                    tmpd = np.array(value)
+                    tmpd = tmpd[~np.isnan(tmpd)]
+                    if len(tmpd) > 0:
+                        max_range = max(max(tmpd) - min(tmpd), 1.0)
+                        ax.set_ylim(min(tmpd) - 0.05 * max_range, max(tmpd) + 0.05 * max_range)
             if resize:
                 ax.set_xlim(self.read_thread.tlist[0], self.read_thread.tlist[-1])
             else:

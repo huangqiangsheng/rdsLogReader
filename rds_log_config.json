@@ -9,14 +9,24 @@
         { "index": 4, "name": "sid", "type": "double"},
         { "index": 5, "name": "eid", "type": "double"},
         { "index": 6, "name": "percentage", "type": "double"},
-        { "index": 7, "name": "rsid", "type": "double"},
-        { "index": 8, "name": "reid", "type": "double"},
-        { "index": 9, "name": "rpercentage", "type": "double"},
+        { "index": 7, "name": "obsStop", "type": "bool"},
+        { "index": 8, "name": "obsSlowDown", "type": "bool"},
+        { "index": 9, "name": "hasError", "type": "bool"},
         { "index": 10, "name": "status", "type": "double"},
         { "index": 11, "name": "vel_x", "type": "double"},
         { "index": 12, "name": "vel_y", "type": "double"},
         { "index": 13, "name": "veL_rot", "type": "double"},
-        { "index": 14, "name": "stopped", "type": "bool"}
+        { "index": 14, "name": "stopped", "type": "bool"},
+        { "index": 15, "name": "containerSize", "type": "double"},
+        { "index": 16, "name": "empty_c", "type":"double"},
+        { "index": 17, "name": "load_c", "type": "double"},
+        { "index": 18, "name": "excutorStop", "type": "bool"},
+        { "index": 19, "name": "doingBinTask", "type": "bool"},
+        { "index": 20, "name": "runningTask", "type": "bool"},
+        { "index": 21, "name": "running_or_last_task_id", "type": "str"},
+        { "index": 22, "name": "task_status", "type": "double"},
+        { "index": 23, "name": "occupyScore", "type": "double"},
+        { "index": 24, "name": "topoPoss", "type": "str"}
       ]
     },
     "GET": {
@@ -108,9 +118,11 @@
     "current_excutor_list":{
       "type":"current_excutor_list",
       "content": [
-        { "index": 0, "name": "size1", "type": "double"},
-        { "index": 1, "name": "size2", "type": "double"},
-        { "index": 2, "name": "excutor_state", "type": "double"}
+        { "index": 0, "name": "size0", "type": "double"},
+        { "index": 1, "name": "size1", "type": "double"},
+        { "index": 2, "name": "size2", "type": "double"},
+        { "index": 3, "name": "excutor_state", "type": "str"},
+        { "index": 4, "name": "in_lift_task", "type": "bool"}
       ]   
     },
     "curOrderState":{
@@ -174,18 +186,34 @@
         { "index": 1, "name": "state", "type": "double"},
         { "index": 2, "name": "is_new_task", "type": "bool"},
         { "index": 3, "name": "is_locked", "type": "bool"},
-        { "index": 4, "name": "connection", "type": "int"},
+        { "index": 4, "name": "connection", "type": "double"},
         { "index": 5, "name": "available", "type": "bool"},
-        { "index": 6, "name": "running_status", "type": "bool"},
+        { "index": 6, "name": "running_status", "type": "double"},
         { "index": 7, "name": "lift_current_area", "type": "str"},
         { "index": 8, "name": "lift_area", "type": "str"},
-        { "index": 9, "name": "uuid", "type": "str"},
+        { "index": 9, "name": "task_uuid", "type": "str"},
         { "index": 10, "name": "runMode", "type": "double"},
         { "index": 11, "name": "err", "type": "str"},
         { "index": 12, "name": "has_door", "type": "bool"},
-        { "index": 13, "name": "doorStatus", "type": "int"},
+        { "index": 13, "name": "doorStatus", "type": "str"},
         { "index": 14, "name": "command_period", "type": "double"},
         { "index": 15, "name": "accessflag", "type": "bool"}
+      ]      
+    },
+    "LiftNewStatus":{
+      "type": "LiftNewStatus",
+      "content": [
+        { "index": 0, "name": "connection", "type": "double"},
+        { "index": 1, "name": "available", "type": "bool"},
+        { "index": 2, "name": "running_status", "type": "double"},
+        { "index": 3, "name": "current_lift_area", "type": "str"},
+        { "index": 4, "name": "lift_area", "type": "str"},
+        { "index": 5, "name": "err", "type": "str"},
+        { "index": 6, "name": "has_door", "type": "bool"},
+        { "index": 7, "name": "doorStatus", "type": "str"},
+        { "index": 8, "name": "command_period", "type": "double"},
+        { "index": 9, "name": "accessflag", "type": "bool"},
+        { "index": 10, "name": "cmd", "type": "str"}
       ]      
     }
 }
