@@ -154,8 +154,18 @@ class RobotModel:
             else:
                 logging.error('Cannot Open robot.model: ' + name)        
 
+class AdancedBlock:
+    def __init__(self) -> None:
+        self.className = ""
+        self.instanceName = ""
+        self.posGroup = []
+        self.dir = 0
+        self.property = []
+        self.desc = []
+
 class AreaData:
     def __init__(self) -> None:
+        self.name = ""
         self.lines = []
         self.circles = []
         self.points = []
@@ -163,6 +173,8 @@ class AreaData:
         self.p_names = []
         self.map_x = []
         self.map_y = []
+        self.blocks = []
+        self.binList = []
 class Readmap(QThread):
     signal = pyqtSignal('PyQt_PyObject')
     def __init__(self):
@@ -233,6 +245,7 @@ class Readmap(QThread):
         for area in self.js["areas"]:
             areadata = AreaData()
             print("areaname:",area["name"])
+            areadata.name = area["name"]
             self.map_data[area["name"]] = areadata
             logicMap = area["logicalMap"]
             if 'advancedCurves' in logicMap:
@@ -353,6 +366,19 @@ class Readmap(QThread):
                     areadata.p_names.append([pt['instanceName']])
                     areadata.map_x.append(x0)
                     areadata.map_y.append(y0)
+            if 'advancedBlocks' in logicMap:
+                for b in logicMap['advancedBlocks']:
+                    ab = AdancedBlock()
+                    ab.className = b['className']
+                    ab.instanceName = b['instanceName']
+                    for p in b['posGroup']:
+                        x = p.get('x',0)
+                        y = p.get('y',0)
+                        ab.posGroup.append([x,y])
+                    ab.dir = b['dir']
+                    ab.desc = b['desc']
+                    areadata.blocks.append(ab)
+            print('blocks size', areadata.name, len(areadata.blocks))
         for k in self.robots.keys():
             self.robots[k].clear_artist()
         self.robots.clear()
@@ -724,10 +750,10 @@ class MapWidget(QtWidgets.QWidget):
                 e.set_visible(show)
 
         map_data = self.read_map.map_data[self.cur_area]
-        xmin = min(map_data.map_x)
-        xmax = max(map_data.map_x)
-        ymin = min(map_data.map_y)
-        ymax = max(map_data.map_y)
+        xmin = min(map_data.map_x) if len(map_data.map_x) > 0 else 0
+        xmax = max(map_data.map_x) if len(map_data.map_x) > 0 else 0
+        ymin = min(map_data.map_y) if len(map_data.map_y) > 0 else 0
+        ymax = max(map_data.map_y) if len(map_data.map_y) > 0 else 0
         print(xmin, xmax, ymin, ymax)
         if xmax - xmin > ymax - ymin:
             ds = xmax - xmin - ymax + ymin
@@ -758,6 +784,8 @@ class MapWidget(QtWidgets.QWidget):
             [p.remove() for p in reversed(self.ax.patches)]
             [p.remove() for p in reversed(self.ax.texts)]
             [p.remove() for p in reversed(self.ax.lines)]
+            self.ruler.clear_rulers()
+            self.ruler.add_ruler(self.ax)
             self.mapData = dict()
             for area_name in self.read_map.map_data:
                 map_data = self.read_map.map_data[area_name]
@@ -775,6 +803,8 @@ class MapWidget(QtWidgets.QWidget):
                     patch = patches.PathPatch(path, facecolor='none', edgecolor='orange', lw=3)
                     self.mapData[area_name].append(patch)
                     self.ax.add_patch(patch)
+                for b in map_data.blocks:
+                    pass
                 pr = 0.25
                 for (pt,name) in zip(map_data.points, map_data.p_names):
                     circle = patches.Circle((pt[0], pt[1]), pr, facecolor='orange',

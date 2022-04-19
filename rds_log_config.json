@@ -215,5 +215,14 @@
         { "index": 9, "name": "accessflag", "type": "bool"},
         { "index": 10, "name": "cmd", "type": "str"}
       ]      
+    },
+    "DoorStatus":{
+      "type": "DoorStatus",
+      "content": [
+        { "index": 0, "name": "doorstatus", "type": "bool"},
+        { "index": 1, "name": "doorinplace", "type": "bool"},
+        { "index": 2, "name": "connection_status", "type": "bool"},
+        { "index": 3, "name": "ss", "type": "str"}
+      ]
     }
 }

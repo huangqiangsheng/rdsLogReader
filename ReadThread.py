@@ -109,8 +109,7 @@ class ReadThread(QThread):
             tmin = self.reader.tmin
             if tmax is None or tmin is None:
                 logging.error("Failed to analysis {}".format(self.filenames))
-            dt = tmax - tmin
-            self.tlist = [tmin + timedelta(microseconds=x) for x in range(0, int(dt.total_seconds()*1e6+1000),1000)]
+            self.tlist = [tmin, tmax]
             #save Error
             ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             output_fname = "Report_" + str(ts).replace(':','-').replace(' ','_') + ".txt"
@@ -137,7 +136,9 @@ class ReadThread(QThread):
             self.group_keys = sorted(self.group_keys)
             fid = open(output_fname,"w") 
             print("="*20, file = fid)
-            print("Files: ", self.filenames, file = fid)
+            print("Files: ", file = fid)
+            for f in self.filenames:
+                print(f, file = fid)
             print(len(self.fatal.content()[0]), " FATALs, ", len(self.err.content()[0]), " ERRORs, ", 
                     len(self.war.content()[0]), " WARNINGs, ", len(self.notice.content()[0]), " NOTICEs", file = fid)
             self.log.append(str(len(self.fatal.content()[0])) + " FATALs, " + str(len(self.err.content()[0])) + 
