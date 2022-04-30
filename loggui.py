@@ -702,7 +702,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     and robot in self.read_thread.content[first_k].data\
                         and sec_k in self.read_thread.content[first_k].data[robot]:
                     data = self.read_thread.content[first_k].data[robot][sec_k]
-                    if data:
+                    if len(data)> 0 and (isinstance(data[0], float) or isinstance(data[0], int)) :
                         tmpd = np.array(data)
                         tmpd = tmpd[~np.isnan(tmpd)]
                         if len(tmpd) > 0:
@@ -1158,10 +1158,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 self.sts_widget.hide()           
 
     def updateMapSelectLine(self):
+        update_line = False
         for ln in self.map_select_lines:
             if self.mid_line_t is not None:
+                update_line = True
                 ln.set_xdata([self.mid_line_t,self.mid_line_t])
-        self.static_canvas.figure.canvas.draw()
+        if update_line:
+            self.static_canvas.figure.canvas.draw()
 
     def mapClosed(self,info):
         # print("hide map")
