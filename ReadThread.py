@@ -58,6 +58,7 @@ class ReadThread(QThread):
         self.data_keys = set()
         self.group_keys = set()
         self.robot_keys = []
+        self.service_keys = set()
         try:
             f = open('rds_log_config.json',encoding= 'UTF-8')
             self.js = js.load(f)
@@ -134,7 +135,8 @@ class ReadThread(QThread):
             self.robot_keys = list(robot_name)
             self.data_keys = sorted(self.data_keys)
             self.group_keys = sorted(self.group_keys)
-            fid = open(output_fname,"w") 
+            self.service_keys = sorted(set(self.service.service_name()))
+            fid = open(output_fname,"w")
             print("="*20, file = fid)
             print("Files: ", file = fid)
             for f in self.filenames:

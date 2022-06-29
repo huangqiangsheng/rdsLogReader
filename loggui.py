@@ -32,13 +32,18 @@ class XYSelection:
         self.y_combo = ExtendedComboBox()
         self.car_combo = ExtendedComboBox()
         self.car_label = QtWidgets.QLabel('AGV')
+        self.service_combo = ExtendedComboBox()
+        self.service = QtWidgets.QLabel('Service')
         car_form = QtWidgets.QFormLayout()
         car_form.addRow(self.car_label,self.car_combo)
         y_form = QtWidgets.QFormLayout()
         y_form.addRow(self.y_label,self.y_combo)
+        service_form = QtWidgets.QFormLayout()
+        service_form.addRow(self.service, self.service_combo)
         vbox = QtWidgets.QVBoxLayout()
         vbox.addLayout(y_form)
         vbox.addLayout(car_form)
+        vbox.addLayout(service_form)
         self.groupBox.setLayout(vbox)
         
 
@@ -142,6 +147,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             selection = XYSelection(i)
             selection.car_combo.activated.connect(self.robot_combo_onActivated)
             selection.y_combo.activated.connect(self.ycombo_onActivated)
+            selection.service_combo.activated.connect(self.service_combo_onActivated)
             self.xys.append(selection)
             self.xy_hbox.addWidget(selection.groupBox)
         self.layout.addLayout(self.xy_hbox)
@@ -821,6 +827,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 xys.y_combo.addItems(self.read_thread.data_keys)
                 if last_combo_ind >= 0:
                     xys.y_combo.setCurrentIndex(last_combo_ind)
+
+                last_combo_ind = xys.service_combo.currentIndex()
+                xys.service_combo.clear()
+                xys.service_combo.addItems(self.read_thread.service_keys)
+                if last_combo_ind >= 0:
+                    xys.service_combo.setCurrentIndex(last_combo_ind)
             for d in self.dataViews:
                 self.initDataView(d)
 
@@ -869,7 +881,17 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
         self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False)
 
+    def service_combo_onActivated(self):
+        curcombo = self.sender()
+        index = 0
+        for (i, xys) in enumerate(self.xys):
+            if curcombo == xys.service_combo:
+                index = i
+                break
+        text = curcombo.currentText()
 
+        print("Fig", text, index, self.xys[index].service_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText())
+        self.drawdata(self.axs[index], self.xys[index].service_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
 
     def cpunum_changed(self, action):
         self.read_thread.cpu_num = int(action.text())
@@ -900,13 +922,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         for xy in self.xys:
             robot_ind = xy.car_combo.currentIndex()
             y_ind = xy.y_combo.currentIndex()
-            combo_ind.append((robot_ind, y_ind))
+            service_ind = xy.service_combo.currentIndex()
+            combo_ind.append((robot_ind, y_ind, service_ind))
 
         self.xys = []
         for i in range(0, new_fig_num):
             selection = XYSelection(i)
             selection.car_combo.activated.connect(self.robot_combo_onActivated)
             selection.y_combo.activated.connect(self.ycombo_onActivated)
+            selection.service_combo.activated.connect(self.service_combo_onActivated)
             self.xys.append(selection)
             self.xy_hbox.addWidget(selection.groupBox)
 
@@ -921,6 +945,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 combo.addItems(self.read_thread.data_keys)
                 if i < len(combo_ind):
                     xys.y_combo.setCurrentIndex(combo_ind[i][1])
+                xys.service_combo.addItems(self.read_thread.service_keys)
+                if i< len(combo_ind):
+                    xys.car_combo.setCurrentIndex(combo_ind[i][2])
                         
             for i, ax in enumerate(self.axs):
                 ax.set_xlim(last_xrange[i][0], last_xrange[i][1])
@@ -932,10 +959,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
 
 
-    def drawdata(self, ax, robot, data, resize = False):
+    def drawdata(self, ax, robot, data, resize = False, service=""):
         xmin,xmax =  ax.get_xlim()
         ax.cla()
-        self.drawFEWN(ax)
+        self.drawFEWN(ax,service)
         tmp = data.split('.')
         if len(tmp)  == 2:
             first_k = tmp[0]
@@ -966,7 +993,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.ruler.add_ruler(ax)
             self.static_canvas.figure.canvas.draw()
 
-    def drawFEWN(self,ax):
+    def drawFEWN(self,ax, service=""):
         """ 绘制 Fatal, Error, Warning在坐标轴上"""
         fl, el, wl,nl = None, None, None, None
         self.lines_dict = dict()
@@ -977,8 +1004,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         tse = None
         lw = 1.5
         ap = 0.8
-
-        for tmp in self.read_thread.service.t():
+        # filter service
+        filtered_service = self.read_thread.service
+        if not service == "":
+            service_selected = Service()
+            data_len = len(filtered_service.data[0])
+            for i in range(0, data_len):
+                if filtered_service.data[2][i] == service:
+                    service_selected.data[0].append(filtered_service.data[0][i])
+                    service_selected.data[1].append(filtered_service.data[1][i])
+                    service_selected.data[2].append(filtered_service.data[2][i])
+            filtered_service = service_selected
+        for tmp in filtered_service.t():
             tse = ax.axvline(tmp, linestyle = '-', color = 'k', linewidth = lw, alpha = ap)
             tsenum.append(line_num)
             line_num = line_num + 1

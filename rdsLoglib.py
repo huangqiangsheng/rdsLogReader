@@ -486,7 +486,7 @@ class Service:
     def __init__(self):
         self.regex = re.compile("\[(.*?)\].*\[Service\].*")
         self.short_regx = "[Service"         
-        self.data = [[] for _ in range(2)]
+        self.data = [[] for _ in range(3)]
     def parse(self, line):
         if self.short_regx in line:               
             out = self.regex.match(line)
@@ -495,6 +495,8 @@ class Service:
                 if "selectOrder" not in line and "(call from C++)" not in line :
                     self.data[0].append(rbktimetodate(out.group(1)))
                     self.data[1].append(out.group(0))
+                    # service name
+                    self.data[2].append(re.search(r'.*\[Service\]\[([A-Za-z]*)|.*', out.group(0)).group(1))
                 return True
             return False
         return False
@@ -505,6 +507,8 @@ class Service:
     def insert_data(self, other):
         for i in range(len(self.data)):
             self.data[i].extend(other.data[i])
+    def service_name(self):
+        return self.data[2]
 
 
 class RobotStatus:
