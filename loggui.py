@@ -272,7 +272,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             tmp_dt = min(vdt)
             if tmp_dt < dt_min:
                 dt_min = tmp_dt
-        if self.read_thread.service.t() and self.check_service.isChecked(): 
+        if self.read_thread.filtered_service.t() and self.check_service.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.service.t()]
             tmp_dt = min(vdt)
             if tmp_dt < dt_min:
@@ -300,11 +300,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 tmp_dt = min(vdt)
                 if abs(tmp_dt - dt_min) < 2e-2:
                     contents = contents + [self.read_thread.notice.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
-            if self.read_thread.service.t() and self.check_service.isChecked(): 
-                vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.service.t()]
+            if self.read_thread.filtered_service.t() and self.check_service.isChecked():
+                vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.filtered_service.t()]
                 tmp_dt = min(vdt)
                 if abs(tmp_dt - dt_min) < 2e-2:
-                    contents = contents + [self.read_thread.service.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
+                    contents = contents + [self.read_thread.filtered_service.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
             content = '\n'.join(contents)
         return content
 
@@ -866,7 +866,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         ax = self.axs[index]
 
         logging.info("Fig {} {} {}".format(index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText()))
-        self.drawdata(ax, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False)
+        self.drawdata(ax, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
     
     def robot_combo_onActivated(self):
         curcombo = self.sender()
@@ -879,7 +879,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         text = curcombo.currentText()
         
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
-        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False)
+        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
 
     def service_combo_onActivated(self):
         curcombo = self.sender()
@@ -948,12 +948,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 xys.service_combo.addItems(self.read_thread.service_keys)
                 if i< len(combo_ind):
                     xys.car_combo.setCurrentIndex(combo_ind[i][2])
-                        
+
             for i, ax in enumerate(self.axs):
                 ax.set_xlim(last_xrange[i][0], last_xrange[i][1])
-                self.drawdata(ax, self.xys[i].car_combo.currentText(), 
-                    self.xys[i].y_combo.currentText(),
-                    True)
+                self.drawdata(ax, self.xys[i].car_combo.currentText(),
+                              self.xys[i].y_combo.currentText(),
+                              True,
+                              self.xys[i].service_combo.currentText())
 
             # self.updateMapSelectLine()
 
@@ -1015,6 +1016,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     service_selected.data[1].append(filtered_service.data[1][i])
                     service_selected.data[2].append(filtered_service.data[2][i])
             filtered_service = service_selected
+            self.read_thread.filtered_service = filtered_service
         for tmp in filtered_service.t():
             tse = ax.axvline(tmp, linestyle = '-', color = 'k', linewidth = lw, alpha = ap)
             tsenum.append(line_num)

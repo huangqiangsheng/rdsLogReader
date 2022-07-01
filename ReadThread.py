@@ -50,6 +50,7 @@ class ReadThread(QThread):
         self.fatal = FatalLine()
         self.notice = NoticeLine()
         self.service = Service()
+        self.filtered_service = Service()
         self.rstatus = RobotStatus()
         self.log =  []
         self.tlist = []
