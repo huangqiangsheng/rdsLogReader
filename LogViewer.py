@@ -127,7 +127,7 @@ class LogViewer(QWidget):
 
     def findUp(self):
         searchStr = self.find_edit.text()
-        if searchStr is not "":
+        if searchStr != "":
             if self.reg_btn.isChecked():
                 searchStr = QtCore.QRegularExpression(searchStr)
             doc = self.plainText.document()
@@ -154,7 +154,7 @@ class LogViewer(QWidget):
 
     def findDown(self):
         searchStr = self.find_edit.text()
-        if searchStr is not "":
+        if searchStr != "":
             if self.reg_btn.isChecked():
                 searchStr = QtCore.QRegularExpression(searchStr)
             doc = self.plainText.document()
@@ -209,7 +209,7 @@ class LogViewer(QWidget):
             return
         lines = []
         doc = self.plainText.document()
-        if searchStr is not "":
+        if searchStr != "":
             if self.reg_btn.isChecked():
                 searchStr = QtCore.QRegularExpression(searchStr)
         if self.case_btn.isChecked() == False:

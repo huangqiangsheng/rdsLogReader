@@ -65,7 +65,7 @@ class RobotModel:
         self.robot_text = mtext.Text(0,0, "")
 
     def updateByPos(self, areaName = None):
-        if self.head is None or self.pos[0] is None:
+        if self.head == None or self.pos[0] == None:
             return
         xdata = [-self.tail, -self.tail, self.head, self.head, -self.tail]
         ydata = [self.width/2, -self.width/2, -self.width/2, self.width/2, self.width/2]
@@ -95,7 +95,7 @@ class RobotModel:
         self.robot_text.set_x(robot_shape[0][0])
         self.robot_text.set_y(robot_shape[1][0])
         print(areaName, self.areaName)
-        if areaName is not None:
+        if areaName != None:
             show = self.areaName == areaName
             self.robot_text.set_visible(show)
             self.cur_arrow.set_visible(show)
@@ -543,8 +543,8 @@ class MapWidget(QtWidgets.QWidget):
         self.ax= self.static_canvas.figure.subplots(1, 1)
         self.ruler = RulerShape()
         self.ruler.add_ruler(self.ax)
-        MyToolBar.home = self.toolbarHome
         self.toolbar = MyToolBar(self.static_canvas, self, ruler = self.ruler)
+        self.toolbar.update_home_callBack(self.toolbarHome)
         self.toolbar.fig_ratio = 1
         self.userToolbar = QtWidgets.QToolBar(self)
         self.autoMap = QtWidgets.QAction("AUTO", self.userToolbar)
@@ -614,7 +614,7 @@ class MapWidget(QtWidgets.QWidget):
         point.set_xdata(event[0])
         point.set_ydata(event[1])
         id = str(int(round(time.time()*1000)))
-        if id not in self.pointLists or self.pointLists[id] is None:
+        if id not in self.pointLists or self.pointLists[id] == None:
             self.pointLists[id] = point
             self.ax.add_line(self.pointLists[id])
             self.static_canvas.figure.canvas.draw() 
@@ -630,7 +630,7 @@ class MapWidget(QtWidgets.QWidget):
         l.set_xdata([event[0][0],event[1][0]])
         l.set_ydata([event[0][1],event[1][1]])
         id = str(int(round(time.time()*1000)))
-        if id not in self.lineLists or self.lineLists[id] is None:
+        if id not in self.lineLists or self.lineLists[id] == None:
             self.lineLists[id] = l
             self.ax.add_line(self.lineLists[id])
             self.static_canvas.figure.canvas.draw() 
@@ -640,18 +640,18 @@ class MapWidget(QtWidgets.QWidget):
         l.set_xdata(event[0])
         l.set_ydata(event[1])     
         id = str(int(round(time.time()*1000)))
-        if id not in self.lineLists or self.lineLists[id] is None:
+        if id not in self.lineLists or self.lineLists[id] == None:
             self.lineLists[id] = l
             self.ax.add_line(self.lineLists[id])
             self.static_canvas.figure.canvas.draw()
 
     def drawClear(self):
         for p in self.pointLists:
-            if self.pointLists[p] is not None:
+            if self.pointLists[p] != None:
                 self.pointLists[p].remove()
                 self.pointLists[p] = None
         for l in self.lineLists:
-            if self.lineLists[l] is not None:
+            if self.lineLists[l] != None:
                 self.lineLists[l].remove()
                 self.lineLists[l] = None
         self.static_canvas.figure.canvas.draw()    
@@ -826,19 +826,19 @@ class MapWidget(QtWidgets.QWidget):
                 self.areaGroup.addAction(tmp_action)
                 tmp_action.setCheckable(True)
 
-                if self.cur_area is None:
+                if self.cur_area == None:
                     self.cur_area = area_name
-                if area_name is self.cur_area:
+                if area_name == self.cur_area:
                     tmp_action.setChecked(True)
             self.autoUpdateArea()
             ## model
             for k in self.read_map.robots.keys():
                 r = self.read_map.robots[k]
-                if r.pos[0] is None:
+                if r.pos[0] == None:
                     r.pos[0] = random.uniform(self.draw_size[0],  self.draw_size[1])
                     r.pos[1] = random.uniform(self.draw_size[2],  self.draw_size[3])
                     r.pos[2] = random.uniform(-3.14,  3.14)
-                if r.areaName is None:
+                if r.areaName == None:
                     r.areaName = self.cur_area
                 r.updateByPos(self.cur_area)
                 self.ax.add_line(r.robot_data)

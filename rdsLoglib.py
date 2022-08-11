@@ -1,14 +1,19 @@
 import json
 import re
 import math
-from datetime import datetime
-import codecs
-import chardet
+from datetime import datetime, timezone
 import logging
 import numpy as np
 import gzip
 from multiprocessing import Pool, Manager
-import matplotlib.pyplot as plt
+import matplotlib
+
+def date2num(d):
+    return matplotlib.dates.date2num(d)
+    
+def num2date(n):
+    return matplotlib.dates.num2date(n).replace(tzinfo=None) 
+
 def rbktimetodate(rbktime):
     """ 将rbk的时间戳转化为datatime """
     return datetime.strptime(rbktime, '%Y-%m-%d %H:%M:%S.%f')

@@ -5,7 +5,8 @@ import math, os
 from matplotlib.backends.backend_qt5agg import  FigureCanvas, NavigationToolbar2QT
 from PyQt5 import QtGui, QtCore,QtWidgets
 from datetime import datetime
-
+from rdsLoglib import num2date
+from enum import IntEnum
 def keepRatio(xmin, xmax, ymin, ymax, fig_ratio, bigger = True):
     ax_ratio = (xmax - xmin)/(ymax - ymin)
     spanx = xmax - xmin 
@@ -28,135 +29,118 @@ def keepRatio(xmin, xmax, ymin, ymax, fig_ratio, bigger = True):
             xmin = xmid - spanx*fig_ratio/ax_ratio/2
     return xmin, xmax, ymin ,ymax
 
+class TriggleFlag(IntEnum):
+    ZOOM = 0
+    PAN = 1
+    RULER = 2
+    NONE = 3
 class MyToolBar(NavigationToolbar2QT):
     toolitems = (
         ('Home', 'Reset original view', 'home', 'home'),
-        ('Back', 'Back to previous view', 'back', 'back'),
-        ('Forward', 'Forward to next view', 'forward', 'forward'),
         (None, None, None, None),
-        ('Pan', 'Pan axes with left mouse, zoom with right', 'move', 'pan'),
-        ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
-        ('Measure', 'Measure distance', 'images/ruler','ruler'),
-        ('Subplots', 'Configure subplots', 'subplots', 'configure_subplots'),
-        (None, None, None, None),
-        ('Save', 'Save the figure', 'filesave', 'save_figure'),
+        ('Pan',
+         'Left button pans, Right button zooms\n'
+         'x/y fixes axis, CTRL fixes aspect',
+         'move', 'pan'),
+        ('Zoom', 'Zoom to rectangle\nx/y fixes axis', 'zoom_to_rect', 'zoom'),
         (None, None, None, None),
       )
     def __init__(self, canvas, parent, ruler, coordinates=True):
-        NavigationToolbar2QT.__init__(self, canvas, parent, coordinates)
-        self.fig_ratio = None
+        """coordinates: should we show the coordinates on the right?"""
+        NavigationToolbar2QT.__init__(self, canvas, parent, False)
+        icon = QtGui.QIcon("images/ruler_large.png")
+        a = self.addAction(icon,"ruler", self.ruler)
+        a.setCheckable(True)
+        
+        self._actions["ruler"] = a
+        self.triggle_mode = TriggleFlag.NONE
+        self._idPress = None
+        self._idRelease = None
+        self._idDrag = None
         self._ruler = ruler
         self._rulerXY = []
+        self._has_home_back = False
 
-    def release_zoom(self, event):
-        """Callback for mouse button release in zoom to rect mode."""
-        for zoom_id in self._ids_zoom:
-            self.canvas.mpl_disconnect(zoom_id)
-        self._ids_zoom = []
+    def home(self, *args):
+        if self._has_home_back:
+            return True
+        xmax = None
+        xmin = None
+        for a in self.canvas.figure.get_axes():
+            ymax = None
+            ymin = None
+            lines = a.get_lines()
+            for l in lines:
+                data = l.get_data()
+                if xmax is None and len(data[0]) > 0:
+                    xmax = max(data[0])
+                else:
+                    xmax = max(data[0] + [xmax])
+                if xmin is None and len(data[0]) > 0:
+                    xmin = min(data[0])
+                else:
+                    xmin = min(data[0]+[xmin])
+                if ymax is None and len(data[1]) > 0:
+                    ymax = max(data[1])
+                else:
+                    ymax = max(data[1]+[ymax])
+                if ymin is None and len(data[1]) > 0:
+                    ymin = min(data[1])
+                else:
+                    ymin = min(data[1]+[ymin])
+            if ymax != None and ymin != None:
+                dy = (ymax - ymin) * 0.05
+                a.set_ylim(ymin - dy, ymax + dy)
+        if xmax != None and xmin != None:
+            dx = (xmax - xmin) * 0.05
+            for a in self.canvas.figure.get_axes():
+                a.set_xlim(xmin - dx, xmax + dx)
+        self.canvas.figure.canvas.draw()
 
-        self.remove_rubberband()
 
-        if not self._xypress:
-            return
+    def update_home_callBack(self, func):
+        self._has_home_back = True
+        self._actions["home"].triggered.connect(func)
 
-        last_a = []
 
-        for cur_xypress in self._xypress:
-            x, y = event.x, event.y
-            lastx, lasty, a, ind, view = cur_xypress
-            # ignore singular clicks - 5 pixels is a threshold
-            # allows the user to "cancel" a zoom action
-            # by zooming by less than 5 pixels
-            if ((abs(x - lastx) < 5 and self._zoom_mode!="y") or
-                    (abs(y - lasty) < 5 and self._zoom_mode!="x")):
-                self._xypress = None
-                self.release(event)
-                self.draw()
-                return
-
-            # detect twinx,y axes and avoid double zooming
-            twinx, twiny = False, False
-            if last_a:
-                for la in last_a:
-                    if a.get_shared_x_axes().joined(a, la):
-                        twinx = True
-                    if a.get_shared_y_axes().joined(a, la):
-                        twiny = True
-            last_a.append(a)
-
-            if self._button_pressed == 1:
-                direction = 'in'
-            elif self._button_pressed == 3:
-                direction = 'out'
-            else:
-                continue
-            if self.fig_ratio != None:
-                (lastx, x, lasty, y) = keepRatio(lastx, x, lasty, y, self.fig_ratio)
-            a._set_view_from_bbox((lastx, lasty, x, y), direction,
-                                self._zoom_mode, twinx, twiny)
-        self.draw()
-        self._xypress = None
-        self._button_pressed = None
-
-        self._zoom_mode = None
-
-        self.push_current()
-        self.release(event)
-
-    def _init_toolbar(self):
-        super()._init_toolbar()
-        self._actions['ruler'].setCheckable(True)
-
-    def _icon(self, name):
-        name = name.replace('.png', '_large.png')
-        filename = os.path.join(self.basedir, name)
-        if os.path.exists(filename):
-            pm = QtGui.QPixmap(filename)
-        else:
-            cur_dir = os.getcwd()
-            pm = QtGui.QPixmap(cur_dir+'/'+name)
-        if hasattr(pm, 'setDevicePixelRatio'):
-            pm.setDevicePixelRatio(self.canvas._dpi_ratio)
-        return QtGui.QIcon(pm)
-
-    def _update_buttons_checked(self):
-        # sync button checkstates to match active mode
-        self._actions['pan'].setChecked(self._active == 'PAN')
-        self._actions['zoom'].setChecked(self._active == 'ZOOM')
-        self._actions['ruler'].setChecked(self._active == 'RULER')
+    def my_update_buttons_checked(self):
+        if self.triggle_mode != TriggleFlag.RULER:
+            if self._idPress is not None:
+                self._idPress = self.canvas.mpl_disconnect(self._idPress)
+            if self._idRelease is not None:
+                self._idRelease = self.canvas.mpl_disconnect(self._idRelease)
+        elif self.triggle_mode != TriggleFlag.NONE:
+            if self._actions['pan'].isChecked():
+                super().pan(None)
+            if self._actions['zoom'].isChecked():
+                super().zoom(None)            
+        self._actions['ruler'].setChecked(self.triggle_mode == TriggleFlag.RULER)
+        self._actions['zoom'].setChecked(self.triggle_mode == TriggleFlag.ZOOM)
+        self._actions['pan'].setChecked(self.triggle_mode == TriggleFlag.PAN)
 
     def pan(self, *args):
+        # print("pan", self.triggle_mode)
         super().pan(*args)
-        self._update_buttons_checked()
+        self.triggle_mode = TriggleFlag.NONE if self.triggle_mode == TriggleFlag.PAN else TriggleFlag.PAN
+        self.my_update_buttons_checked()
 
     def zoom(self, *args):
+        # print("zoom", self.triggle_mode)
         super().zoom(*args)
-        self._update_buttons_checked()
-
-    def isActive(self):
-        return (self._active is not None)
+        self.triggle_mode = TriggleFlag.NONE if self.triggle_mode == TriggleFlag.ZOOM else TriggleFlag.ZOOM
+        self.my_update_buttons_checked()
 
     def ruler(self):
+        # print("ruler", self.triggle_mode)
         """Activate ruler."""
-        if self._active == 'RULER':
-            self._active = None
-        else:
-            self._active = 'RULER'
+        self.triggle_mode = TriggleFlag.NONE if self.triggle_mode == TriggleFlag.RULER else TriggleFlag.RULER
+        active = self.triggle_mode == TriggleFlag.RULER
 
-        if self._idPress is not None:
-            self._idPress = self.canvas.mpl_disconnect(self._idPress)
-            self.mode = ''
-
-        if self._idRelease is not None:
-            self._idRelease = self.canvas.mpl_disconnect(self._idRelease)
-            self.mode = ''
-
-        if self._active:
+        if active:
             self._idPress = self.canvas.mpl_connect('button_press_event',
                                                     self.press_ruler)
             self._idRelease = self.canvas.mpl_connect('button_release_event',
                                                       self.release_ruler)
-            self.mode = 'measuring'
             self.canvas.widgetlock(self)
         else:
             self.canvas.widgetlock.release(self)
@@ -164,13 +148,13 @@ class MyToolBar(NavigationToolbar2QT):
             self.canvas.figure.canvas.draw()
 
         for a in self.canvas.figure.get_axes():
-            a.set_navigate_mode(self._active)
-
-        self.set_message(self.mode)
-        self._update_buttons_checked()
+            a.set_navigate_mode(active)
+        self.my_update_buttons_checked()
 
     def press_ruler(self, event):
         """Callback for mouse button press in Ruler mode."""
+        if self.triggle_mode != TriggleFlag.RULER:
+            return
         if event.button == 1 and event.inaxes:
             self._button_pressed = 1
         else:
@@ -185,6 +169,8 @@ class MyToolBar(NavigationToolbar2QT):
 
     def release_ruler(self, event):
         """Callback for mouse button release in Ruler mode."""
+        if self.triggle_mode != TriggleFlag.RULER:
+            return
         if event.button == 1 and event.inaxes:
             self._button_pressed = 1
         else:
@@ -195,6 +181,8 @@ class MyToolBar(NavigationToolbar2QT):
 
     def move_ruler(self, event):
         """Callback for mouse button move in Ruler mode."""
+        if self.triggle_mode != TriggleFlag.RULER:
+            return
         if event.button == 1 and event.inaxes:
             self._button_pressed = 1
         else:
@@ -203,6 +191,12 @@ class MyToolBar(NavigationToolbar2QT):
         self._rulerXY[1] = [event.xdata, event.ydata]
         self._ruler.update(event.inaxes, self._rulerXY)
         self.canvas.figure.canvas.draw()
+    
+    def isActive(self):
+        for a in self._actions:
+            if self._actions[a].isChecked():
+                return True
+        return False
 
 class RulerShape:
     def __init__(self):
@@ -296,8 +290,8 @@ class RulerShapeMap(RulerShape):
         self._texts[indx].set_y(text_y)  
         dt = data[1][0] - data[0][0]
         try:
-            t1 = datetime.fromtimestamp(data[1][0] * 86400 - 62135712000)
-            t0 = datetime.fromtimestamp(data[0][0] * 86400 - 62135712000)
+            t1 = num2date(data[1][0])
+            t0 = num2date(data[0][0])
             dt = (t1 - t0).total_seconds()
         except:
             pass 

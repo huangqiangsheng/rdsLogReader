@@ -266,7 +266,7 @@ class DataView(QtWidgets.QMainWindow):
         self.selection.y_combo.addItems(data)
         robot = self.selection.car_combo.currentText()
         first_k = self.selection.y_combo.currentText()
-        if robot is not "" and first_k is not "":
+        if robot != "" and first_k != "":
             self.setWindowTitle(robot+"."+first_k)  
 
     def setYItems(self, data):
@@ -275,7 +275,7 @@ class DataView(QtWidgets.QMainWindow):
         self.selection.y_combo.addItems(data)
         robot = self.selection.car_combo.currentText()
         first_k = self.selection.y_combo.currentText()
-        if robot is not "" and first_k is not "":
+        if robot != "" and first_k != "":
             self.setWindowTitle(robot+"."+first_k) 
         if last_first_k != first_k:
             self.dataViewUpdate()
@@ -290,7 +290,7 @@ class DataView(QtWidgets.QMainWindow):
     def dataViewUpdate(self):
         robot = self.selection.car_combo.currentText()
         first_k = self.selection.y_combo.currentText()
-        if robot is not "" and first_k is not "":
+        if robot != "" and first_k != "":
             self.setWindowTitle(robot+"."+first_k)
         self.dataViewMsg.emit(self)
 

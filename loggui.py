@@ -16,13 +16,14 @@ from rdsLoglib import Data, ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLi
 from MapWidget import MapWidget, Readmap
 from LogViewer import LogViewer
 from JsonView import DataView, JsonView
-from MyToolBar import MyToolBar, RulerShapeMap, RulerShape
+from MyToolBar import MyToolBar, RulerShapeMap
 import logging
 import numpy as np
 import traceback
 import json
 from multiprocessing import freeze_support
 import zipfile
+from rdsLoglib import num2date, date2num
 
 class XYSelection:
     def __init__(self, num = 1):
@@ -174,13 +175,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.is_keypressed = False
         # self.layout.addWidget(self.scroll)
         self.ruler = RulerShapeMap()
-        self.old_home = MyToolBar.home
-        self.old_forward = MyToolBar.forward
-        self.old_back = MyToolBar.back
-        MyToolBar.home = self.new_home
-        MyToolBar.forward = self.new_forward
-        MyToolBar.back = self.new_back
         self.toolBar = MyToolBar(self.static_canvas, self._main, ruler = self.ruler)
+        self.toolBar.update_home_callBack(self.new_home)
         self.addToolBar(self.toolBar)
         
         self.axs= self.static_canvas.figure.subplots(cur_fig_num, 1, sharex = True)    
@@ -506,39 +502,35 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def mouse_press(self, event):
         self.mouse_pressed = True
         if event.inaxes and self.finishReadFlag:
-            mouse_time = event.xdata * 86400 - 62135712000
-            if mouse_time > 1e6:
-                mouse_time = datetime.fromtimestamp(mouse_time)
-                if event.button == 1:
-                    content = event.inaxes.get_ylabel().replace(' \n ', ".") + ' : ' + str(mouse_time) + ',\t' +str(event.ydata)
-                    self.log_info.append(content)
-                elif event.button == 3:
-                    if not self.toolBar.isActive():
-                        self.popMenu = QtWidgets.QMenu(self)
-                        self.popMenu.addAction('&Save Data',lambda:self.savePlotData(event.inaxes))
-                        self.popMenu.addAction('&Move Here',lambda:self.moveHere(event.xdata))
-                        self.popMenu.addAction('&Diff Time', lambda:self.diffData(event.inaxes))
-                        self.popMenu.addAction('&-y', lambda:self.negData(event.inaxes))
-                        cursor = QtGui.QCursor()
-                        self.popMenu.exec_(cursor.pos())
-                    # show info
-                    content = self.get_content(mouse_time)
-                    if content != "":
-                        self.log_info.append(content[:-1])
-                if self.mid_line_select:
-                    self.mid_line_t = mouse_time
-                    self.updateMap()
+            mouse_time = num2date(event.xdata) 
+            if event.button == 1:
+                content = event.inaxes.get_ylabel().replace(' \n ', ".") + ' : ' + str(mouse_time) + ',\t' +str(event.ydata)
+                self.log_info.append(content)
+            elif event.button == 3:
+                if not self.toolBar.isActive():
+                    self.popMenu = QtWidgets.QMenu(self)
+                    self.popMenu.addAction('&Save Data',lambda:self.savePlotData(event.inaxes))
+                    self.popMenu.addAction('&Move Here',lambda:self.moveHere(event.xdata))
+                    self.popMenu.addAction('&Diff Time', lambda:self.diffData(event.inaxes))
+                    self.popMenu.addAction('&-y', lambda:self.negData(event.inaxes))
+                    cursor = QtGui.QCursor()
+                    self.popMenu.exec_(cursor.pos())
+                # show info
+                content = self.get_content(mouse_time)
+                if content != "":
+                    self.log_info.append(content[:-1])
+            if self.mid_line_select:
+                self.mid_line_t = mouse_time
+                self.updateMap()
 
     def mouse_move(self, event):
         if event.inaxes and self.finishReadFlag:
-            mouse_time = event.xdata * 86400 - 62135712000
-            if mouse_time > 1e6:
-                mouse_time = datetime.fromtimestamp(mouse_time)
-                content = self.get_content(mouse_time)
-                self.info.setText(content)
-                if self.mid_line_select:
-                    self.mid_line_t = mouse_time
-                    self.updateMap()
+            mouse_time = num2date(event.xdata)
+            content = self.get_content(mouse_time)
+            self.info.setText(content)
+            if self.mid_line_select:
+                self.mid_line_t = mouse_time
+                self.updateMap()
             else:
                 self.info.setText("")
         elif not self.finishReadFlag:
@@ -551,8 +543,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def moveHere(self, mtime):
         mouse_time = mtime
         if type(mouse_time) is not datetime:
-            mouse_time = mtime * 86400 - 62135712000
-            mouse_time = datetime.fromtimestamp(mouse_time)
+            mouse_time = num2date(mouse_time)
         self.mid_line_t = mouse_time
         self.updateMap()
 
@@ -1145,20 +1136,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             for ax in self.axs:
                 wl = ax.axvline(tmid, color = 'c', linewidth = 10, alpha = 0.5, picker = 10)
                 self.map_select_lines.append(wl) 
-                mouse_time = tmid * 86400 - 62135712000
-                if mouse_time > 1e6:
-                    self.mid_line_t = datetime.fromtimestamp(mouse_time)
+                self.mid_line_t = num2date(tmid)
         else:
             cur_t = self.map_select_lines[0].get_xdata()[0]
             if type(cur_t) is not datetime:
-                cur_t = cur_t * 86400 - 62135712000
-                cur_t = datetime.fromtimestamp(cur_t)
+                cur_t = num2date(cur_t)
             if type(xmin) is not datetime:
-                xmin = xmin * 86400 - 62135712000
-                xmin = datetime.fromtimestamp(xmin)
+                xmin = num2date(xmin)
             if type(xmax) is not datetime:
-                xmax = xmax * 86400 - 62135712000
-                xmax = datetime.fromtimestamp(xmax)
+                xmax = num2date(xmax)
             if cur_t >= xmin and cur_t <= xmax:
                 for ln in self.map_select_lines:
                     ln.set_visible(True)
@@ -1166,9 +1152,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 for ln in self.map_select_lines:
                     ln.set_visible(True)
                     ln.set_xdata([tmid, tmid])
-                    mouse_time = tmid * 86400 - 62135712000
-                    if mouse_time > 1e6:
-                        self.mid_line_t = datetime.fromtimestamp(mouse_time)
+                    self.mid_line_t = num2date(tmid)
 
     def openViewer(self, checked):
         if checked:
