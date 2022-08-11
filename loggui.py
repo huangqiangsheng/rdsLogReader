@@ -460,31 +460,40 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             loc_idx = (np.abs(loc_ts - self.mid_line_t)).argmin()
             if loc_idx < 1:
                 loc_idx = 1
+            area_idx = -1
+            get_ts = np.array(self.read_thread.content['GET'].data[robot]['t'])
+            area_idx = (np.abs(get_ts - self.mid_line_t)).argmin()
+            if area_idx < 1:
+                area_idx = 1
             max_idx = 100
-            ploc_idx = loc_idx
-            nloc_idx = loc_idx
-            cur_area_name = self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx]
-            for idx in range(loc_idx):
-                if loc_idx - idx - 1 < 0:
-                    ploc_idx = 0
-                if self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx - idx - 1] != cur_area_name:
-                    ploc_idx = loc_idx - idx
+            parea_idx = area_idx
+            narea_idx = area_idx
+            cur_area_name = self.read_thread.content['GET'].data[robot]['cu_area_name'][area_idx]
+            for idx in range(area_idx):
+                if area_idx - idx - 1 < 0:
+                    parea_idx = 0
+                if self.read_thread.content['GET'].data[robot]['cu_area_name'][area_idx - idx - 1] != cur_area_name:
+                    parea_idx = area_idx - idx
                     break
                 if idx > max_idx:
-                    ploc_idx = loc_idx - idx - 1
+                    parea_idx = area_idx - idx - 1
                     break
-            for idx in range(loc_idx):
-                if loc_idx + idx + 1 >= len(self.read_thread.content['GET'].data[robot]['cu_area_name']):
-                    nloc_idx = len(self.read_thread.content['GET'].data[robot]['cu_area_name']) - 1
+            for idx in range(area_idx):
+                if area_idx + idx + 1 >= len(self.read_thread.content['GET'].data[robot]['cu_area_name']):
+                    narea_idx = len(self.read_thread.content['GET'].data[robot]['cu_area_name']) - 1
                     break
-                if self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx + idx + 1] != cur_area_name:
-                    nloc_idx = loc_idx + idx
+                if self.read_thread.content['GET'].data[robot]['cu_area_name'][area_idx + idx + 1] != cur_area_name:
+                    narea_idx = area_idx + idx
                     break
                 if idx > max_idx:
-                    nloc_idx = loc_idx + idx + 1
+                    narea_idx = area_idx + idx + 1
                     break            
+            pt = get_ts[parea_idx]
+            nt = get_ts[narea_idx]
+            ploc_idx = np.searchsorted(loc_ts, pt)
+            nloc_idx = np.searchsorted(loc_ts, nt)
             self.map_widget.readtrajectory(robot,
-                self.read_thread.content['GET'].data[robot]['cu_area_name'][loc_idx],
+                self.read_thread.content['GET'].data[robot]['cu_area_name'][area_idx],
                 self.read_thread.content['rTopoPos'].data[robot]['x'][ploc_idx:loc_idx], 
                 self.read_thread.content['rTopoPos'].data[robot]['y'][ploc_idx:loc_idx],
                 self.read_thread.content['rTopoPos'].data[robot]['x'][loc_idx:nloc_idx], 

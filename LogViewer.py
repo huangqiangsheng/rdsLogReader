@@ -15,6 +15,7 @@ class LogViewer(QWidget):
         self.InitWindow()
         self.resize(600,800)
         self.moveHere_flag = False
+        self.less_fig=[]
 
     def InitWindow(self):
         self.setWindowTitle(self.title)
@@ -34,9 +35,20 @@ class LogViewer(QWidget):
         self.find_up.clicked.connect(self.findUp)
         self.find_down = QtWidgets.QPushButton("Down")
         self.find_down.clicked.connect(self.findDown)
+        self.less_btn = QtWidgets.QPushButton("Less")
+        self.less_btn.clicked.connect(self.less)
+        self.case_btn = QtWidgets.QPushButton("Ignore \n Case")
+        self.case_btn.setCheckable(True)
+        self.case_btn.clicked.connect(self.caseChange)
+        self.reg_btn = QtWidgets.QPushButton("Disable \n Reg")
+        self.reg_btn.setCheckable(True)
+        self.reg_btn.clicked.connect(self.regChange)
         hbox.addWidget(self.find_edit)
         hbox.addWidget(self.find_up)
         hbox.addWidget(self.find_down)
+        hbox.addWidget(self.less_btn)
+        hbox.addWidget(self.case_btn)
+        hbox.addWidget(self.reg_btn)
         vbox.addWidget(self.plainText)
         vbox.addLayout(hbox)
         self.setLayout(vbox)
@@ -47,7 +59,7 @@ class LogViewer(QWidget):
         self.plainText.cursorPositionChanged.connect(self.cursorChanged)
         self.last_cursor = None
     def setText(self, lines):
-        self.plainText.setPlainText(''.join(lines))     
+        self.plainText.setPlainText(''.join(lines))    
     def setLineNum(self, ln):
         print("moveHere_flag", self.moveHere_flag)
         if not self.moveHere_flag:
@@ -98,6 +110,9 @@ class LogViewer(QWidget):
             mtime = rbktimetodate(out.group(1))
             self.moveHereSignal.emit(mtime)
 
+    def moveHereWithTime(self, mtime):
+        self.moveHereSignal.emit(mtime)
+
     def readData(self, f, file):
         for line in f.readlines(): 
             try:
@@ -113,6 +128,8 @@ class LogViewer(QWidget):
     def findUp(self):
         searchStr = self.find_edit.text()
         if searchStr is not "":
+            if self.reg_btn.isChecked():
+                searchStr = QtCore.QRegularExpression(searchStr)
             doc = self.plainText.document()
             cur_highlightCursor = self.plainText.textCursor()
             if self.find_cursor:
@@ -120,8 +137,10 @@ class LogViewer(QWidget):
                     self.find_set_cursor.position() == cur_highlightCursor.position():
                     cur_highlightCursor = QtGui.QTextCursor(self.find_cursor)
                     cur_highlightCursor.setPosition(cur_highlightCursor.anchor())                   
-                
-            cur_highlightCursor = doc.find(searchStr, cur_highlightCursor, QtGui.QTextDocument.FindBackward)
+            if self.case_btn.isChecked() == False:
+                cur_highlightCursor = doc.find(searchStr, cur_highlightCursor, QtGui.QTextDocument.FindBackward)
+            else:
+                cur_highlightCursor = doc.find(searchStr, cur_highlightCursor, QtGui.QTextDocument.FindBackward|QtGui.QTextDocument.FindCaseSensitively)
             if cur_highlightCursor.position() >= 0:
                 if self.find_cursor:
                     fmt = QtGui.QTextCharFormat()
@@ -136,6 +155,8 @@ class LogViewer(QWidget):
     def findDown(self):
         searchStr = self.find_edit.text()
         if searchStr is not "":
+            if self.reg_btn.isChecked():
+                searchStr = QtCore.QRegularExpression(searchStr)
             doc = self.plainText.document()
             cur_highlightCursor = self.plainText.textCursor()
             if self.find_cursor:
@@ -143,8 +164,10 @@ class LogViewer(QWidget):
                     cur_highlightCursor.position() == self.find_set_cursor.position():
                     cur_highlightCursor = QtGui.QTextCursor(self.find_cursor)
                     cur_highlightCursor.clearSelection()
-
-            cur_highlightCursor = doc.find(searchStr, cur_highlightCursor)
+            if self.case_btn.isChecked() == False:
+                cur_highlightCursor = doc.find(searchStr, cur_highlightCursor)
+            else:
+                cur_highlightCursor = doc.find(searchStr, cur_highlightCursor, QtGui.QTextDocument.FindCaseSensitively)
             if cur_highlightCursor.position()>=0:
                 if self.find_cursor:
                     fmt = QtGui.QTextCharFormat()
@@ -169,6 +192,52 @@ class LogViewer(QWidget):
                 self.last_cursor.select(QtGui.QTextCursor.LineUnderCursor)
                 self.last_cursor.setBlockFormat(fmt)          
         self.last_cursor = self.plainText.textCursor()
+
+    def caseChange(self):
+        if self.case_btn.isChecked():
+            self.case_btn.setText("Match \n Case")
+        else:
+            self.case_btn.setText("Ignore \n Case")
+    def regChange(self):
+        if self.reg_btn.isChecked():
+            self.reg_btn.setText("Enable \n Reg")
+        else:
+            self.reg_btn.setText("Disable \n Reg")
+    def less(self):
+        searchStr = self.find_edit.text()
+        if searchStr == "":
+            return
+        lines = []
+        doc = self.plainText.document()
+        if searchStr is not "":
+            if self.reg_btn.isChecked():
+                searchStr = QtCore.QRegularExpression(searchStr)
+        if self.case_btn.isChecked() == False:
+            cursor = doc.find(searchStr, 0)     
+        else:
+            cursor = doc.find(searchStr, 0, QtGui.QTextDocument.FindCaseSensitively)
+        while cursor.blockNumber() > 0:
+            if self.case_btn.isChecked() == False:
+                cursor = doc.find(searchStr, cursor)     
+            else:
+                cursor = doc.find(searchStr, cursor, QtGui.QTextDocument.FindCaseSensitively)    
+            if cursor.blockNumber() < 1:
+                break
+            next_pos = cursor.block().next().position()
+            if next_pos < 1:
+                break
+            lines.append(cursor.block().text()+'\n')
+            cursor.setPosition(next_pos)
+        print("line size:",len(lines))
+        if len(lines) < 1:
+            return
+        new_lg = LogViewer()
+        new_lg.setWindowTitle(self.find_edit.text())
+        new_lg.setWindowIcon(QtGui.QIcon('rds.ico'))
+        new_lg.moveHereSignal.connect(self.moveHereWithTime)    
+        new_lg.setText(lines)
+        self.less_fig.append(new_lg)    
+        new_lg.show()
 
 if __name__ == "__main__":
     import sys

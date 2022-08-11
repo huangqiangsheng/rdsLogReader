@@ -120,9 +120,7 @@
       "content": [
         { "index": 0, "name": "size0", "type": "double"},
         { "index": 1, "name": "size1", "type": "double"},
-        { "index": 2, "name": "size2", "type": "double"},
-        { "index": 3, "name": "excutor_state", "type": "str"},
-        { "index": 4, "name": "in_lift_task", "type": "bool"}
+        { "index": 3, "name": "excutor_state", "type": "str"}
       ]   
     },
     "curOrderState":{
@@ -223,6 +221,27 @@
         { "index": 1, "name": "doorinplace", "type": "bool"},
         { "index": 2, "name": "connection_status", "type": "bool"},
         { "index": 3, "name": "ss", "type": "str"}
+      ]
+    },
+    "updatePath":{
+      "type": "updatePath",
+      "content": [
+        { "index": 0, "name": "flag", "type": "bool"}
+      ]
+    },
+    "setGoodsShape":{
+      "type": "setGoodsShape",
+      "content": [
+        { "index": 0, "name": "goods_dir", "type": "rad", "description":"货物在地图坐标下的朝向","unit": "degree"},
+        { "index": 1, "name": "robot_theta", "type": "rad", "description":"机器人在地图坐标下的朝向","unit": "degree"},
+        { "index": 2, "name": "dtheta", "type": "rad", "description":"货物到机器人的朝向差","unit": "degree"},
+        { "index": 3, "name": "ddtheta", "type": "rad", "description":"货到机器人角度差变化量","unit": "degree"},
+        { "index": 4, "name": "goods_length", "type": "double", "description":"货物长度","unit": "m"},
+        { "index": 5, "name": "has_goods", "type": "bool", "description":"是否有货物","unit": ""},
+        { "index": 6, "name": "no_goods", "type": "bool", "description":"是否有货物","unit": ""},
+        { "index": 7, "name": "g2r_x", "type": "double", "description":"货物在机器人的x","unit": "m"},
+        { "index": 8, "name": "g2r_y", "type": "double", "description":"货物在机器人的y","unit": "m"},
+        { "index": 9, "name": "g2r_angle", "type": "rad", "description":"货物在机器人的angle","unit": "degree"}
       ]
     }
 }
