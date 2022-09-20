@@ -252,27 +252,32 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         dt_min = 1e10
         if self.read_thread.fatal.t() and self.check_fatal.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.fatal.t()]
-            dt_min = min(vdt)
+            if len(vdt) > 0:
+                dt_min = min(vdt)
         if self.read_thread.err.t() and self.check_err.isChecked(): 
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.err.t()]
-            tmp_dt = min(vdt)
-            if tmp_dt < dt_min:
-                dt_min = tmp_dt
+            if len(vdt) > 0:
+                tmp_dt = min(vdt)
+                if tmp_dt < dt_min:
+                    dt_min = tmp_dt
         if self.read_thread.war.t() and self.check_war.isChecked(): 
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.war.t()]
-            tmp_dt = min(vdt)
-            if tmp_dt < dt_min:
-                dt_min = tmp_dt
+            if len(vdt) > 0:
+                tmp_dt = min(vdt)
+                if tmp_dt < dt_min:
+                    dt_min = tmp_dt
         if self.read_thread.notice.t() and self.check_notice.isChecked(): 
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.notice.t()]
-            tmp_dt = min(vdt)
-            if tmp_dt < dt_min:
-                dt_min = tmp_dt
+            if len(vdt) > 0:
+                tmp_dt = min(vdt)
+                if tmp_dt < dt_min:
+                    dt_min = tmp_dt
         if self.read_thread.filtered_service.t() and self.check_service.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.service.t()]
-            tmp_dt = min(vdt)
-            if tmp_dt < dt_min:
-                dt_min = tmp_dt
+            if len(vdt) > 0:
+                tmp_dt = min(vdt)
+                if tmp_dt < dt_min:
+                    dt_min = tmp_dt
 
         if dt_min < 10:
             contents = []
@@ -387,6 +392,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 t = self.read_thread.content[y].data[robot]['t']    
                 if value is not None and t is not None:
                     yitems.append(y)
+        if robot == "global":
+            yitems.append("memory")
         return yitems
 
     def updateDataView(self, d:DataView):
@@ -398,6 +405,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             and robot in self.read_thread.content[first_k].data:
             value = self.read_thread.content[first_k].data[robot]
             t = self.read_thread.content[first_k].data[robot]['t']
+        elif robot == "global" and first_k == "memory":
+            value, t = self.read_thread.memory.content["rbk_phy"]()
         if value is None or t is None:
             yitems = self.getValidYItems(robot)
             d.setYItems(yitems)
@@ -406,18 +415,26 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         ts = np.array(t)
         idx = (np.abs(ts - self.mid_line_t)).argmin()
         j = dict()
-        for k in self.read_thread.content[first_k].data[robot].keys():
-            if k[0] == '_':
-                continue
-            j[k] = self.read_thread.content[first_k].data[robot][k][idx]
-            # 对于订单特殊处理
-            if isinstance(j[k], dict):
-                if "createTime" in j[k]:
-                    if isinstance(j[k]["createTime"], int):
-                        j[k]["createTime"] = datetime.fromtimestamp(j[k]["createTime"])
-                if "terminalTime" in j[k]:
-                    if isinstance(j[k]["terminalTime"], int):
-                        j[k]["terminalTime"] = datetime.fromtimestamp(j[k]["terminalTime"])
+        if robot == "global" and first_k == "memory":
+            for k in self.read_thread.memory.content:
+                tmp_d = self.read_thread.memory.content[k]()[0]
+                if idx < len(tmp_d):
+                    j[k] = tmp_d[idx]
+                else:
+                    j[k] = None
+        else:
+            for k in self.read_thread.content[first_k].data[robot].keys():
+                if k[0] == '_':
+                    continue
+                j[k] = self.read_thread.content[first_k].data[robot][k][idx]
+                # 对于订单特殊处理
+                if isinstance(j[k], dict):
+                    if "createTime" in j[k]:
+                        if isinstance(j[k]["createTime"], int):
+                            j[k]["createTime"] = datetime.fromtimestamp(j[k]["createTime"])
+                    if "terminalTime" in j[k]:
+                        if isinstance(j[k]["terminalTime"], int):
+                            j[k]["terminalTime"] = datetime.fromtimestamp(j[k]["terminalTime"])
         d.loadJson(j)
 
     def updateDataViews(self):
@@ -531,8 +548,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             if self.mid_line_select:
                 self.mid_line_t = mouse_time
                 self.updateMap()
-            else:
-                self.info.setText("")
         elif not self.finishReadFlag:
             self.info.setText("")
 
@@ -821,10 +836,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 xys.car_combo.addItems(self.read_thread.robot_keys)
                 if last_combo_ind >= 0:
                         xys.car_combo.setCurrentIndex(last_combo_ind)
-
                 last_combo_ind = xys.y_combo.currentIndex()
                 xys.y_combo.clear()
-                xys.y_combo.addItems(self.read_thread.data_keys)
+                car_name = xys.car_combo.currentText()
+                if car_name in self.read_thread.data_keys:
+                    xys.y_combo.addItems(self.read_thread.data_keys[car_name])
                 if last_combo_ind >= 0:
                     xys.y_combo.setCurrentIndex(last_combo_ind)
 
@@ -875,9 +891,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             if curcombo == xys.car_combo:
                 index = i
                 break
-
-        text = curcombo.currentText()
         
+        text = curcombo.currentText()
+        self.xys[index].y_combo.clear()
+        if text in self.read_thread.data_keys:
+            self.xys[index].y_combo.addItems(self.read_thread.data_keys[text])
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
         self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
 
@@ -890,8 +908,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 break
         text = curcombo.currentText()
 
-        print("Fig", text, index, self.xys[index].service_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText())
-        self.drawdata(self.axs[index], self.xys[index].service_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
+        print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText())
+        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
 
     def cpunum_changed(self, action):
         self.read_thread.cpu_num = int(action.text())
@@ -942,7 +960,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     xys.car_combo.setCurrentIndex(combo_ind[i][0])
                 combo = xys.y_combo
                 print("change Figure")
-                combo.addItems(self.read_thread.data_keys)
+                car_name = xys.car_combo.currentText()
+                if car_name in self.read_thread.data_keys:
+                    combo.addItems(self.read_thread.data_keys[car_name])
                 if i < len(combo_ind):
                     xys.y_combo.setCurrentIndex(combo_ind[i][1])
                 xys.service_combo.addItems(self.read_thread.service_keys)
@@ -959,7 +979,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             # self.updateMapSelectLine()
 
 
-
     def drawdata(self, ax, robot, data, resize = False, service=""):
         xmin,xmax =  ax.get_xlim()
         ax.cla()
@@ -970,9 +989,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             sec_k = tmp[1]
             value = None
             t = None
-            if robot in self.read_thread.content[first_k].data:
-                value = self.read_thread.content[first_k].data[robot][sec_k]
-                t = self.read_thread.content[first_k].data[robot]['t']
+            ylabel = ""
+            if first_k == "memory":
+                if sec_k in self.read_thread.memory.content:
+                    value, t = self.read_thread.memory.content[sec_k]()
+                ylabel = data
+            else:
+                if robot in self.read_thread.content[first_k].data:
+                    value = self.read_thread.content[first_k].data[robot][sec_k]
+                    t = self.read_thread.content[first_k].data[robot]['t']
+                    ylabel = "{} \n {}".format(robot, self.read_thread.content[first_k].description[sec_k])
             if value and t:
                 ax.plot(t, value, '.')
                 if len(value) > 0 and isinstance(value[0], (int, float)):
@@ -985,7 +1011,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 ax.set_xlim(self.read_thread.tlist[0], self.read_thread.tlist[-1])
             else:
                 ax.set_xlim(xmin, xmax)
-            ylabel = "{} \n {}".format(robot, self.read_thread.content[first_k].description[sec_k])
             ax.set_ylabel(ylabel)
             ax.grid()
             ind = np.where(self.axs == ax)[0][0]
@@ -1243,6 +1268,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.updateDataView(dataView) 
 
     def initDataView(self, d:DataView):
+        print(self.read_thread.robot_keys)
+        print(self.read_thread.group_keys)
         d.setSelectionItems(self.read_thread.robot_keys, self.read_thread.group_keys)   
 
 if __name__ == "__main__":

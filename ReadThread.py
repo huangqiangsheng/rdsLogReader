@@ -1,5 +1,5 @@
 from PyQt5.QtCore import QThread, pyqtSignal
-from rdsLoglib import Data, ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLine, Service, RobotStatus
+from rdsLoglib import Data, ErrorLine, WarningLine, ReadLog, FatalLine, NoticeLine, Service, RobotStatus, Memory
 from datetime import timedelta
 from datetime import datetime
 import os
@@ -52,6 +52,7 @@ class ReadThread(QThread):
         self.service = Service()
         self.filtered_service = Service()
         self.rstatus = RobotStatus()
+        self.memory = Memory()
         self.log =  []
         self.tlist = []
         self.cpu_num = 4
@@ -94,6 +95,7 @@ class ReadThread(QThread):
         self.fatal = FatalLine()
         self.notice = NoticeLine()
         self.service = Service()
+        self.memory = Memory()
         self.tlist = []
         self.log =  []
         if self.filenames:
@@ -102,7 +104,7 @@ class ReadThread(QThread):
             time_start=time.time()
             self.reader.parse(self.content, self.err, 
                               self.war, self.fatal, self.notice, self.service,
-                              self.rstatus)
+                              self.rstatus, self.memory)
             time_end=time.time()
             self.log.append('read time cost: ' + str(time_end-time_start))
             # self.content.update(content_delay)
@@ -120,8 +122,9 @@ class ReadThread(QThread):
             self.log.append("Report File:" + Fdir2Flink(output_fname))
 
             robot_name = set()
-            self.data_keys = set()
+            self.data_keys = dict()
             self.group_keys = set()
+            robot_name.add("global") # 没有车子的key
             for k in self.content.keys():
                 for robot in self.content[k].data.keys():
                     robot_name.add(robot)
@@ -132,9 +135,19 @@ class ReadThread(QThread):
                                 and (isinstance(self.content[k].data[robot][name][0], int) \
                                     or isinstance(self.content[k].data[robot][name][0], float)) \
                                         or isinstance(self.content[k].data[robot][name][0], str):
-                                self.data_keys.add(k+'.'+name)
+                                if robot not in self.data_keys:
+                                    self.data_keys[robot] = set()
+                                self.data_keys[robot].add(k+'.'+name)
+            self.group_keys.add("memory")
+            if "global" not in self.data_keys:
+                self.data_keys["global"] = set()
+            self.data_keys["global"].update({"memory.used_sys", 
+                "memory.free_sys", "memory.rbk_phy",
+                "memory.rbk_vir","memory.rbk_max_phy",
+                "memory.rbk_max_vir","memory.rbk_cpu","memory.sys_cpu"})
             self.robot_keys = list(robot_name)
-            self.data_keys = sorted(self.data_keys)
+            for r in self.data_keys:
+                self.data_keys[r] = sorted(self.data_keys[r])
             self.group_keys = sorted(self.group_keys)
             self.service_keys = sorted(set(self.service.service_name()))
             fid = open(output_fname,"w")

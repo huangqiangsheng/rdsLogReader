@@ -25,8 +25,14 @@
         { "index": 20, "name": "runningTask", "type": "bool"},
         { "index": 21, "name": "running_or_last_task_id", "type": "str"},
         { "index": 22, "name": "task_status", "type": "double"},
-        { "index": 23, "name": "occupyScore", "type": "double"},
-        { "index": 24, "name": "topoPoss", "type": "str"}
+        { "index": 23, "name": "awayPath", "type": "bool"},
+        { "index": 24, "name": "occupyScore", "type": "double"},
+        { "index": 25, "name": "topoPoss", "type": "str"},
+        { "index": 26, "name": "mapf_area", "type": "str"},
+        { "index": 27, "name": "cur_odo", "type": "double"},
+        { "index": 28, "name": "near_ids", "type": "str"},
+        { "index": 29, "name": "cur_area", "type": "str"},
+        { "index": 30, "name": "hasGoods", "type": "bool"}
       ]
     },
     "GET": {
@@ -243,5 +249,38 @@
         { "index": 8, "name": "g2r_y", "type": "double", "description":"货物在机器人的y","unit": "m"},
         { "index": 9, "name": "g2r_angle", "type": "rad", "description":"货物在机器人的angle","unit": "degree"}
       ]
+    },
+    "OccupyRes":{
+      "type": "OccupyRes",
+      "content": [
+        { "index": 0, "name": "area", "type": "str", "description":"当前区域"},
+        { "index": 1, "name": "area_size", "type": "double", "description":"占用区域数量"},
+        { "index": 2, "name": "block", "type": "str", "description":"占用互斥组"},
+        { "index": 3, "name": "avoid", "type": "str", "description":"绕行区域"},
+        { "index": 4, "name": "path", "type": "str", "description":"路径资源"}
+      ]
+    },
+    "RDSSchedule":{
+      "type":"RDSSchedule",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"last_unfinished_simple","description":"上周期没有分配的拼合单", "type":"int"},
+        {"index":1, "name":"unfinished_simple","description":"当前没有分配的拼合单", "type":"int"},
+        {"index":2, "name":"waited_order","description":"当前待分配的普通运单", "type":"int"},
+        {"index":3, "name":"last_waited_order","description":"上周期待分配的普通运单", "type":"int"},
+        {"index":4, "name":"pre_send_orders","description":"需要按照优先级分配的运单", "type":"int"},
+        {"index":5, "name":"sended_orders","description":"分配好的运单", "type":"int"},
+        {"index":6, "name":"simple_order","description":"拼合单数量", "type":"int"},
+        {"index":7, "name":"msg","description":"报错信息", "type":"str"}
+      ]        
+    },
+    "deleteO":{
+      "type":"deleteO",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"delete_order_size","description":"要删除的运单数量", "type":"int"},
+        {"index":1, "name":"tmp_order_size","description":"要删但不符合删除条件的运单数量", "type":"int"},
+        {"index":2, "name":"order_size","description":"当前普通运单数量", "type":"int"}
+      ]        
     }
 }

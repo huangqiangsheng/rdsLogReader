@@ -210,9 +210,13 @@ class ReadLog:
 class Data:
     def __init__(self, info, key_name:str):
         self.type = key_name
-        self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*)\]".format(self.type))
         self.short_regx = "["+self.type
         self.info = info['content']
+        self.has_vehicle = info.get("vehicle", True)
+        if self.has_vehicle:
+            self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*)\]".format(self.type))
+        else:
+            self.regex = re.compile("\[(.*?)\].*\[{}\]\[(.*)\]".format(self.type))
         self.data = dict()
         self.description = dict()
         self.unit = dict()
@@ -280,37 +284,73 @@ class Data:
             out = self.regex.match(line)
             if out:
                 datas = out.groups()
-                robot = datas[1]
-                if robot not in self.data:
-                    self.data[robot]=dict()
-                    self.data[robot]['t'] = []
-                    self.data[robot]['_lm_'] = []
-                values = datas[2].split('|')
-                self.data[robot]['t'].append(rbktimetodate(datas[0]))
-                self.data[robot]['_lm_'].append(num)
-                for tmp in self.info:
-                    if 'type' in tmp and 'index' in tmp and 'name' in tmp:
-                        tmp_type = type(tmp['name'])
-                        name = ""
-                        has_name = False
-                        if tmp_type is str:
-                            name = tmp['name']
-                            has_name = True
-                        elif tmp_type is int:
-                            if tmp['name'] < len(values):
-                                name = values[tmp['name']]
+                if self.has_vehicle:
+                    # 有机器人标签
+                    robot = datas[1]
+                    if robot not in self.data:
+                        self.data[robot]=dict()
+                        self.data[robot]['t'] = []
+                        self.data[robot]['_lm_'] = []
+                    values = datas[2].split('|')
+                    self.data[robot]['t'].append(rbktimetodate(datas[0]))
+                    self.data[robot]['_lm_'].append(num)
+                    for tmp in self.info:
+                        if 'type' in tmp and 'index' in tmp and 'name' in tmp:
+                            tmp_type = type(tmp['name'])
+                            name = ""
+                            has_name = False
+                            if tmp_type is str:
+                                name = tmp['name']
                                 has_name = True
-                        if has_name:
-                            if name not in self.data[robot]:
-                                self.data[robot][name] = []
-                            if tmp['index'] < len(values):
-                                self._storeData(robot, tmp, name, tmp['index'], values)
-                            else:
-                                self.data[robot][name].append(np.nan)
-                    else:
-                        if not self.parse_error:
-                            logging.error("Error in {} {} ".format(self.type, tmp.keys()))
-                            self.parse_error = True
+                            elif tmp_type is int:
+                                if tmp['name'] < len(values):
+                                    name = values[tmp['name']]
+                                    has_name = True
+                            if has_name:
+                                if name not in self.data[robot]:
+                                    self.data[robot][name] = []
+                                if tmp['index'] < len(values):
+                                    self._storeData(robot, tmp, name, tmp['index'], values)
+                                else:
+                                    self.data[robot][name].append(np.nan)
+                        else:
+                            if not self.parse_error:
+                                logging.error("Error in {} {} ".format(self.type, tmp.keys()))
+                                self.parse_error = True
+                else:
+                    # 没有机器人标签
+                    robot = "global"
+                    if robot not in self.data:
+                        self.data[robot]=dict()
+                        self.data[robot]['t'] = []
+                        self.data[robot]['_lm_'] = []
+                    values = datas[1].split('|')
+                    self.data[robot]['t'].append(rbktimetodate(datas[0]))
+                    self.data[robot]['_lm_'].append(num)
+                    for tmp in self.info:
+                        if 'type' in tmp and 'index' in tmp and 'name' in tmp:
+                            tmp_type = type(tmp['name'])
+                            name = ""
+                            has_name = False
+                            if tmp_type is str:
+                                name = tmp['name']
+                                has_name = True
+                            elif tmp_type is int:
+                                # 用log中的位置表示名字
+                                if tmp['name'] < len(values):
+                                    name = values[tmp['name']]
+                                    has_name = True
+                            if has_name:
+                                if name not in self.data[robot]:
+                                    self.data[robot][name] = []
+                                if tmp['index'] < len(values):
+                                    self._storeData(robot, tmp, name, tmp['index'], values)
+                                else:
+                                    self.data[robot][name].append(np.nan)
+                        else:
+                            if not self.parse_error:
+                                logging.error("Error in {} {} ".format(self.type, tmp.keys()))
+                                self.parse_error = True
                 return True
             return False
         return False
@@ -328,9 +368,18 @@ class Data:
     def insert_data(self, other):
         for robot in other.data.keys():
             if robot in self.data.keys():
+                extend_flag = True
+                if 't' in other.data[robot].keys() and 't' in self.data[robot].keys():
+                    if len(other.data[robot]['t']) > 0 and len(self.data[robot]['t']) > 0:
+                        if other.data[robot]['t'][0] < self.data[robot]['t'][0]:
+                            extend_flag = False
                 for key in other.data[robot].keys():
                     if key in self.data[robot].keys():
-                        self.data[robot][key].extend(other.data[robot][key])
+                        if extend_flag:
+                            self.data[robot][key].extend(other.data[robot][key])
+                        else:
+                            other.data[robot][key].extend(self.data[robot][key])
+                            self.data[robot][key] = other.data[robot][key]
                     else:
                         self.data[robot][key] = other.data[robot][key]
             else:
@@ -586,6 +635,92 @@ class RobotStatus:
         return self.data[8], self.time[1]
     def notices(self):
         return self.data[9], self.time[1]
+    def insert_data(self, other):
+        for i in range(len(self.data)):
+            self.data[i].extend(other.data[i])
+        for i in range(len(self.time)):
+            self.time[i].extend(other.time[i])
+
+class Memory:
+    """  内存信息
+    t[0]: 
+    t[1]:
+    t[2]:
+    t[3]:
+    t[4]:
+    t[5]:
+    data[0]: used_sys
+    data[1]: free_sys
+    data[2]: rbk_phy
+    data[3]: rbk_vir
+    data[4]: rbk_max_phy
+    data[5]: rbk_max_vir
+    data[6]: cpu_usage
+    """
+    def __init__(self):
+        self.regex = [re.compile("\[(.*?)\].*\[Text\]\[Used system memory *: *(.*?) *([MG])B\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Free system memory *: *(.*?) *([MG])B\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Robokit physical memory usage *: *(.*?) *([GM])B\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Robokit virtual memory usage *: *(.*?) *([GM])B\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Robokit Max physical memory usage *: *(.*?) *([GM])B\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Robokit Max virtual memory usage *: *(.*?) *([GM])B\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[Robokit CPU usage *: *(.*?)%\]"),
+                    re.compile("\[(.*?)\].*\[Text\]\[System CPU usage *: *(.*?)%\]")]
+        self.short_regx =  ["Used system",
+                            "Free system",
+                            "Robokit physical memory",
+                            "Robokit virtual memory",
+                            "Max physical memory",
+                            "Max virtual memory",
+                            "Robokit CPU usage",
+                            "System CPU usage"]
+        self.time = [[] for _ in range(8)]
+        self.data = [[] for _ in range(8)]
+        self.content = {
+            "used_sys": self.used_sys,
+            "free_sys": self.free_sys,
+            "rbk_phy": self.rbk_phy,
+            "rbk_vir": self.rbk_vir,
+            "rbk_max_phy": self.rbk_max_phy,
+            "rbk_max_vir": self.rbk_max_vir,
+            "rbk_cpu": self.rbk_cpu,
+            "sys_cpu": self.sys_cpu
+        }
+    def parse(self, line):
+        for iter in range(0,8):
+            if self.short_regx[iter] in line:
+                out = self.regex[iter].match(line)
+                if out:
+                    self.time[iter].append(rbktimetodate(out.group(1)))
+                    if iter == 6 or iter == 7:
+                        self.data[iter].append(float(out.group(2)))
+                    else:
+                        if out.group(3) == "G":
+                            self.data[iter].append(float(out.group(2)) * 1024.0)
+                        else:
+                            self.data[iter].append(float(out.group(2)))
+                    return True
+                return False
+        return False
+
+    def t(self):
+        return self.time[0]
+    def used_sys(self):
+        return self.data[0], self.time[0]
+    def free_sys(self):
+        return self.data[1], self.time[1]
+    def rbk_phy(self):
+        return self.data[2], self.time[2]
+    def rbk_vir(self):
+        return self.data[3], self.time[3]
+    def rbk_max_phy(self):
+        return self.data[4], self.time[4]
+    def rbk_max_vir(self):
+        return self.data[5], self.time[5]
+    def rbk_cpu(self):
+        return self.data[6], self.time[6]
+    def sys_cpu(self):
+        return self.data[7], self.time[7]
     def insert_data(self, other):
         for i in range(len(self.data)):
             self.data[i].extend(other.data[i])

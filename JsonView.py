@@ -262,6 +262,8 @@ class DataView(QtWidgets.QMainWindow):
         self.jsonView.expandToDepth(1)    
 
     def setSelectionItems(self, car, data):
+        self.selection.car_combo.clear()
+        self.selection.y_combo.clear()
         self.selection.car_combo.addItems(car)
         self.selection.y_combo.addItems(data)
         robot = self.selection.car_combo.currentText()
