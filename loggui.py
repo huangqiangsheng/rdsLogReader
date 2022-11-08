@@ -250,7 +250,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def get_content(self, mouse_time, ax):
         content = ""
         ind = np.where(self.axs == ax)[0][0]
-        filtered_service = self.read_thread.filtered_service[ind]
+        filtered_service = None
+        if ind in self.read_thread.filtered_service:
+            filtered_service = self.read_thread.filtered_service[ind]
         dt_min = 1e10
         if self.read_thread.fatal.t() and self.check_fatal.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.fatal.t()]
@@ -274,7 +276,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 tmp_dt = min(vdt)
                 if tmp_dt < dt_min:
                     dt_min = tmp_dt
-        if filtered_service.t() and self.check_service.isChecked():
+        if filtered_service is not None and filtered_service.t() and self.check_service.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.service.t()]
             if len(vdt) > 0:
                 tmp_dt = min(vdt)
@@ -303,7 +305,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 tmp_dt = min(vdt)
                 if abs(tmp_dt - dt_min) < 2e-2:
                     contents = contents + [self.read_thread.notice.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
-            if filtered_service.t() and self.check_service.isChecked():
+            if filtered_service is not None and filtered_service.t() and self.check_service.isChecked():
                 vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in filtered_service.t()]
                 tmp_dt = min(vdt)
                 if abs(tmp_dt - dt_min) < 2e-2:
