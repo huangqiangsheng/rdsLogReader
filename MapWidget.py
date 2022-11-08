@@ -589,6 +589,7 @@ class MapWidget(QtWidgets.QWidget):
         self.fig_layout.addWidget(self.userToolbar)
         self.fig_layout.addWidget(self.static_canvas)
         self.static_canvas.mpl_connect('resize_event', self.resize_fig)
+        self.time_text = mtext.Text(0,0,"")
 
         
     def changeAutoMap(self):
@@ -852,9 +853,16 @@ class MapWidget(QtWidgets.QWidget):
             font = QtGui.QFont()
             font.setBold(True)
             self.smap_action.setFont(font)
+            self.time_text.set_transform(self.ax.transAxes)
+            self.time_text.set_x(0.02)
+            self.time_text.set_y(0.98)
+            self.time_text.set_verticalalignment("top")
+            self.time_text.set_horizontalalignment("left")
+            self.ax.add_artist(self.time_text)
             self.static_canvas.figure.canvas.draw()
     
-    def readtrajectory(self, name, areaName, x, y, xn, yn, x0, y0, r0):
+    def readtrajectory(self, name, areaName, x, y, xn, yn, x0, y0, r0, t0):
+        self.time_text.set_text(str(t0))
         if name in self.read_map.robots:
             r = self.read_map.robots[name]
             r.areaName = areaName

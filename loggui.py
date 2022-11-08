@@ -515,7 +515,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 self.read_thread.content['rTopoPos'].data[robot]['y'][loc_idx:nloc_idx],
                 self.read_thread.content['rTopoPos'].data[robot]['x'][loc_idx], 
                 self.read_thread.content['rTopoPos'].data[robot]['y'][loc_idx], 
-                np.deg2rad(self.read_thread.content['rTopoPos'].data[robot]['theta'][loc_idx]))           
+                np.deg2rad(self.read_thread.content['rTopoPos'].data[robot]['theta'][loc_idx]),
+                self.mid_line_t)           
         self.map_widget.redraw()
 
     def mouse_press(self, event):
