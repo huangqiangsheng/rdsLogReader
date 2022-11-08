@@ -546,7 +546,10 @@ class Service:
             out = self.regex.match(line)
             if out:
                 # 忽略查询订单的服务
-                if "selectOrder" not in line and "(call from C++)" not in line :
+                if "selectOrder" not in line\
+                    and "getDisablePaths" not in line\
+                        and "getDisablePoints" not in line\
+                            and "(call from C++)" not in line :
                     self.data[0].append(rbktimetodate(out.group(1)))
                     self.data[1].append(out.group(0))
                     # service name

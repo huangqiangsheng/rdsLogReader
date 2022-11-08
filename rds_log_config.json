@@ -282,5 +282,13 @@
         {"index":1, "name":"tmp_order_size","description":"要删但不符合删除条件的运单数量", "type":"int"},
         {"index":2, "name":"order_size","description":"当前普通运单数量", "type":"int"}
       ]        
+    },
+    "TCost":{
+      "type":"TCost",
+      "vehicle": false,
+      "content":[
+        {"index":5, "name":"updatePos","description":"获取机器的状态", "type":"double"},
+        {"index":-1, "name":"TCost","description":"控制周期", "type":"double"}
+      ]        
     }
 }

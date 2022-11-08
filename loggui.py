@@ -247,8 +247,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         font_width = 100.0
         self.static_canvas.figure.subplots_adjust(left = (font_width/(w*1.0)), right = 0.99, bottom = 0.05, top = 0.95, hspace = 0.1)
 
-    def get_content(self, mouse_time):
+    def get_content(self, mouse_time, ax):
         content = ""
+        ind = np.where(self.axs == ax)[0][0]
+        filtered_service = self.read_thread.filtered_service[ind]
         dt_min = 1e10
         if self.read_thread.fatal.t() and self.check_fatal.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.fatal.t()]
@@ -272,7 +274,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 tmp_dt = min(vdt)
                 if tmp_dt < dt_min:
                     dt_min = tmp_dt
-        if self.read_thread.filtered_service.t() and self.check_service.isChecked():
+        if filtered_service.t() and self.check_service.isChecked():
             vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.service.t()]
             if len(vdt) > 0:
                 tmp_dt = min(vdt)
@@ -301,11 +303,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 tmp_dt = min(vdt)
                 if abs(tmp_dt - dt_min) < 2e-2:
                     contents = contents + [self.read_thread.notice.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
-            if self.read_thread.filtered_service.t() and self.check_service.isChecked():
-                vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in self.read_thread.filtered_service.t()]
+            if filtered_service.t() and self.check_service.isChecked():
+                vdt = [abs((tmpt - mouse_time).total_seconds()) for tmpt in filtered_service.t()]
                 tmp_dt = min(vdt)
                 if abs(tmp_dt - dt_min) < 2e-2:
-                    contents = contents + [self.read_thread.filtered_service.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
+                    contents = contents + [filtered_service.content()[0][i] for i,val in enumerate(vdt) if abs(val - dt_min) < 1e-3]
             content = '\n'.join(contents)
         return content
 
@@ -533,7 +535,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     cursor = QtGui.QCursor()
                     self.popMenu.exec_(cursor.pos())
                 # show info
-                content = self.get_content(mouse_time)
+                content = self.get_content(mouse_time, event.inaxes)
                 if content != "":
                     self.log_info.append(content[:-1])
             if self.mid_line_select:
@@ -543,7 +545,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def mouse_move(self, event):
         if event.inaxes and self.finishReadFlag:
             mouse_time = num2date(event.xdata)
-            content = self.get_content(mouse_time)
+            content = self.get_content(mouse_time, event.inaxes)
             self.info.setText(content)
             if self.mid_line_select:
                 self.mid_line_t = mouse_time
@@ -821,10 +823,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             logging.warning("NOTICEs are too much to be ploted. Max Number is " + str(max_line) + ". Current Number is " + str(len(self.read_thread.notice.t())))
             self.log_info.append("NOTICEs are too much to be ploted. Max Number is " + str(max_line) + ". Current Number is " + str(len(self.read_thread.notice.t())))
             self.read_thread.notice = NoticeLine()
-        if len(self.read_thread.service.t()) > max_line:
-            logging.warning("SERVICE are too much to be ploted. Max Number is " + str(max_line) +". Current Number is " + str(len(self.read_thread.service.t())))
-            self.log_info.append("SERVICE are too much to be ploted. Max Number is " + str(max_line) + ". Current Number is " + str(len(self.read_thread.service.t())))
-            self.read_thread.service = Service()
+        # if len(self.read_thread.service.t()) > max_line:
+        #     logging.warning("SERVICE are too much to be ploted. Max Number is " + str(max_line) +". Current Number is " + str(len(self.read_thread.service.t())))
+        #     self.log_info.append("SERVICE are too much to be ploted. Max Number is " + str(max_line) + ". Current Number is " + str(len(self.read_thread.service.t())))
+        #     self.read_thread.service = Service()
         self.finishReadFlag = True
         self.setWindowTitle('Log分析器: {0}'.format([f.split('/')[-1] for f in self.filenames]))
         if self.read_thread.filenames:
@@ -855,6 +857,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             for i, ax in enumerate(self.axs):
                     self.drawdata(ax, self.xys[i].car_combo.currentText(), 
                         self.xys[i].y_combo.currentText(),
+                        self.xys[i].service_combo.currentText(),
                         True)
             self.updateMidLine()
             self.updateMapSelectLine()
@@ -882,7 +885,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         ax = self.axs[index]
 
         logging.info("Fig {} {} {}".format(index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText()))
-        self.drawdata(ax, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
+        self.drawdata(ax, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText(), False)
     
     def robot_combo_onActivated(self):
         curcombo = self.sender()
@@ -897,7 +900,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         if text in self.read_thread.data_keys:
             self.xys[index].y_combo.addItems(self.read_thread.data_keys[text])
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
-        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
+        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText(), False)
 
     def service_combo_onActivated(self):
         curcombo = self.sender()
@@ -909,7 +912,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         text = curcombo.currentText()
 
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText())
-        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), False, self.xys[index].service_combo.currentText())
+        self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText(), False)
 
     def cpunum_changed(self, action):
         self.read_thread.cpu_num = int(action.text())
@@ -973,13 +976,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 ax.set_xlim(last_xrange[i][0], last_xrange[i][1])
                 self.drawdata(ax, self.xys[i].car_combo.currentText(),
                               self.xys[i].y_combo.currentText(),
-                              True,
-                              self.xys[i].service_combo.currentText())
+                              self.xys[i].service_combo.currentText(),
+                              True)
 
             # self.updateMapSelectLine()
 
 
-    def drawdata(self, ax, robot, data, resize = False, service=""):
+    def drawdata(self, ax, robot, data, service, resize = False):
         xmin,xmax =  ax.get_xlim()
         ax.cla()
         self.drawFEWN(ax,service)
@@ -1031,8 +1034,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         lw = 1.5
         ap = 0.8
         # filter service
-        filtered_service = self.read_thread.service
+        filtered_service = None
         if not service == "":
+            filtered_service = self.read_thread.service
             service_selected = Service()
             data_len = len(filtered_service.data[0])
             for i in range(0, data_len):
@@ -1041,11 +1045,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     service_selected.data[1].append(filtered_service.data[1][i])
                     service_selected.data[2].append(filtered_service.data[2][i])
             filtered_service = service_selected
-            self.read_thread.filtered_service = filtered_service
-        for tmp in filtered_service.t():
-            tse = ax.axvline(tmp, linestyle = '-', color = 'k', linewidth = lw, alpha = ap)
-            tsenum.append(line_num)
-            line_num = line_num + 1
+            ind = np.where(self.axs == ax)[0][0]
+            self.read_thread.filtered_service[ind] = filtered_service
+        if filtered_service is not None:
+            for tmp in filtered_service.t():
+                tse = ax.axvline(tmp, linestyle = '-', color = 'k', linewidth = lw, alpha = ap)
+                tsenum.append(line_num)
+                line_num = line_num + 1
         if tse:
             legend_info.append(tse)
             legend_info.append('service')
