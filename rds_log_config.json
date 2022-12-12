@@ -217,7 +217,9 @@
         { "index": 7, "name": "doorStatus", "type": "str"},
         { "index": 8, "name": "command_period", "type": "double"},
         { "index": 9, "name": "accessflag", "type": "bool"},
-        { "index": 10, "name": "cmd", "type": "str"}
+        { "index": 10, "name": "cmd", "type": "str"},
+        { "index": 11, "name": "totalCmd", "type": "int"},
+        {"index":11, "name":"forbidden", "type":"bool"}
       ]      
     },
     "DoorStatus":{
@@ -290,5 +292,19 @@
         {"index":5, "name":"updatePos","description":"获取机器的状态", "type":"double"},
         {"index":-1, "name":"TCost","description":"控制周期", "type":"double"}
       ]        
+    },
+    "suspendState":{
+      "type":"suspendState",
+      "vehicle":true,
+      "content":[
+        {"index":0, "name":"in_pause","description":"", "type":"bool"},
+        {"index":1, "name":"in_resume","description":"", "type":"bool"},
+        {"index":2, "name":"in_is_suspend","description":"", "type":"int"},
+        {"index":3, "name":"task_status","description":"", "type":"int"},
+        {"index":4, "name":"collision_flag","description":"", "type":"bool"},
+        {"index":5, "name":"m_pause","description":"", "type":"bool"},
+        {"index":6, "name":"m_resume","description":"", "type":"bool"},
+        {"index":7, "name":"m_is_suspend","description":"", "type":"double"}
+      ]
     }
 }
