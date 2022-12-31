@@ -899,9 +899,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 break
         
         text = curcombo.currentText()
+        cur_y = self.xys[index].y_combo.currentText()
         self.xys[index].y_combo.clear()
         if text in self.read_thread.data_keys:
             self.xys[index].y_combo.addItems(self.read_thread.data_keys[text])
+            if cur_y in self.read_thread.data_keys[text]:
+                indx = list(self.read_thread.data_keys[text]).index(cur_y)
+                self.xys[index].y_combo.setCurrentIndex(indx)
         print("Fig", text, index, self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText())
         self.drawdata(self.axs[index], self.xys[index].car_combo.currentText(), self.xys[index].y_combo.currentText(), self.xys[index].service_combo.currentText(), False)
 

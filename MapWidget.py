@@ -23,6 +23,7 @@ import logging
 import copy
 import time
 import random
+import re
 
 def GetGlobalPos(p2b, b2g):
     x = p2b[0] * np.cos(b2g[2]) - p2b[1] * np.sin(b2g[2])
@@ -424,6 +425,67 @@ class PointWidget(QtWidgets.QWidget):
         except:
             pass
 
+class CollisionShapeWidget(QtWidgets.QWidget):
+    getdata = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
+        self.shape_label = QtWidgets.QLabel('checkCollision')
+        self.pos_label = QtWidgets.QLabel('shape')
+        self.shape_edit = QtWidgets.QLineEdit()
+        self.pos_edit = QtWidgets.QLineEdit()
+        self.shape_input = QtWidgets.QFormLayout()
+        self.shape_input.addRow(self.shape_label,self.shape_edit)
+        self.pos_input = QtWidgets.QFormLayout()
+        self.pos_input.addRow(self.pos_label,self.pos_edit)
+        self.pos_edit.setPlaceholderText("[2022-12-30 16:57:44.897866][RDSDispatcher][debug] [AMB-07][checkCollision|-15.345750|-8.672000|-3.141593|-14.612000|-7.780000|-2.609048|true|AMB-09|0.548250|0.098623]")
+        self.shape_edit.setPlaceholderText("[2022-12-30 16:57:44.897866][RDSDispatcher][debug] [AMB-07][shape|[(0.520000,0.350000),(0.520000,-0.350000),(-0.480000,-0.350000),(-0.480000,0.350000),]|[(0.520000,0.350000),(0.520000,-0.350000),(-0.480000,-0.350000),(-0.480000,0.350000),]]")
+        self.btn = QtWidgets.QPushButton("Yes")
+        self.btn.clicked.connect(self.getData)
+        vbox = QtWidgets.QVBoxLayout(self)
+        vbox.addLayout(self.pos_input)
+        vbox.addLayout(self.shape_input)
+        vbox.addWidget(self.btn)
+        self.setWindowTitle("CollisionShape Input")
+
+    def getData(self):
+        """
+        """
+        try:
+            shape_txt = self.shape_edit.text()
+            if shape_txt == "":
+                shape_txt = self.shape_edit.placeholderText()
+            pos_txt = self.pos_edit.text()
+            if pos_txt == "":
+                pos_txt = self.pos_edit.placeholderText()
+            print(pos_txt == None, shape_txt == None, pos_txt, shape_txt)
+            pos_regex = re.compile("\[(.*?)\].*\[(.*?)\]\[checkCollision\|(.*)\]")
+            shape_regex = re.compile("\[(.*?)\].*\[(.*?)\]\[shape\|(.*)\]")
+            pos_out = pos_regex.match(pos_txt)
+            shape_out = shape_regex.match(shape_txt)
+            shape1 = []
+            shape2 = []
+            print("pos_eidt", pos_txt)
+            print("shape_eidt", shape_txt)
+            if pos_out and shape_out:
+                pos_data = pos_out.groups()
+                shape_data = shape_out.groups()
+                pos_valus = pos_data[2].split('|')
+                shape_values = shape_data[2].split('|')
+                def getShape(x,y,theta, in_shape):
+                    b2g = np.array([x,y,theta])
+                    in_shape.append(in_shape[0])
+                    shape = np.array(in_shape)                    
+                    shape = np.transpose(shape)
+                    shape = GetGlobalPos(shape,b2g)
+                    return shape
+                shape1 = getShape(float(pos_valus[0]), float(pos_valus[1]), float(pos_valus[2]), eval(shape_values[0]))
+                shape2 = getShape(float(pos_valus[3]), float(pos_valus[4]), float(pos_valus[5]), eval(shape_values[1]))
+            self.hide()
+            self.getdata.emit([shape1,shape2])
+        except Exception as err:
+            print(err.args)
+            pass
+
 class LineWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent = None):
@@ -559,12 +621,16 @@ class MapWidget(QtWidgets.QWidget):
         self.draw_line.triggered.connect(self.addLine)
         self.draw_curve = QtWidgets.QAction("CURVE", self.userToolbar)
         self.draw_curve.triggered.connect(self.addCurve)
+        self.draw_colliShape = QtWidgets.QAction("ColliShape", self.userToolbar)
+        self.draw_colliShape.triggered.connect(self.addCollisionShape)
+
         self.draw_clear = QtWidgets.QAction("CLEAR", self.userToolbar)
         self.draw_clear.triggered.connect(self.drawClear)
 
         self.userToolbar.addActions([self.autoMap, self.smap_action])
         self.userToolbar.addSeparator()
-        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_clear])
+        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape,
+        self.draw_clear])
 
         self.scenceToolBar = QtWidgets.QToolBar(self)
         self.areaGroup = QtWidgets.QActionGroup(self)
@@ -574,14 +640,22 @@ class MapWidget(QtWidgets.QWidget):
         self.getPoint.getdata.connect(self.getPointData)
         self.getPoint.hide()
         self.getPoint.setWindowFlags(Qt.Window)
+        
         self.getLine = LineWidget(self)
         self.getLine.getdata.connect(self.getLineData)
         self.getLine.hide()
         self.getLine.setWindowFlags(Qt.Window)
+        
         self.getCurve = CurveWidget(self)
         self.getCurve.getdata.connect(self.getCurveData)
         self.getCurve.hide()
         self.getCurve.setWindowFlags(Qt.Window)
+        
+        self.getColliShape = CollisionShapeWidget(self)
+        self.getColliShape.getdata.connect(self.getCollisionShapeData)
+        self.getColliShape.hide()
+        self.getColliShape.setWindowFlags(Qt.Window)
+
         self.autoMap.setChecked(True)
         self.fig_layout = QtWidgets.QVBoxLayout(self)
         self.fig_layout.addWidget(self.toolbar)
@@ -625,6 +699,9 @@ class MapWidget(QtWidgets.QWidget):
     
     def addCurve(self):
         self.getCurve.show()
+    
+    def addCollisionShape(self):
+        self.getColliShape.show()
 
     def getLineData(self, event):
         l = lines.Line2D([],[], linestyle = '--', marker = '.', markersize = 6.0, color='r')
@@ -646,6 +723,24 @@ class MapWidget(QtWidgets.QWidget):
             self.ax.add_line(self.lineLists[id])
             self.static_canvas.figure.canvas.draw()
 
+    def getCollisionShapeData(self, event):
+        l1 = lines.Line2D([],[], linestyle = '--', color='r')
+        s1 = event[0]
+        l1.set_xdata(s1[0])
+        l1.set_ydata(s1[1])     
+        id1 = str(int(round(time.time()*1000)))
+        l2 = lines.Line2D([],[], linestyle = '--', color='b')
+        s2 = event[1]
+        l2.set_xdata(s2[0])
+        l2.set_ydata(s2[1])     
+        id2 = str(int(round(time.time()*1000))+1000000)
+        if (id1 not in self.lineLists or self.lineLists[id1] == None)\
+            and (id2 not in self.lineLists or self.lineLists[id2] == None):
+            self.lineLists[id1] = l1
+            self.ax.add_line(self.lineLists[id1])
+            self.lineLists[id2] = l2
+            self.ax.add_line(self.lineLists[id2])
+            self.static_canvas.figure.canvas.draw()
     def drawClear(self):
         for p in self.pointLists:
             if self.pointLists[p] != None:

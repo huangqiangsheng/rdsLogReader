@@ -56,7 +56,8 @@
         { "index": 15, "name": "cu_area_name", "type": "str"},
         { "index": 16, "name": "same_map_with_scene", "type": "bool"},
         { "index": 17, "name": "finishedCurrentOrders", "type": "bool"},
-        { "index": 18, "name": "is_suspend", "type": "bool"}
+        { "index": 18, "name": "is_suspend", "type": "bool"},
+        { "index": 19, "name": "hot_lock", "type": "str"} 
       ]
     },
     "runBlockIn": {
@@ -295,16 +296,16 @@
     },
     "suspendState":{
       "type":"suspendState",
-      "vehicle":true,
+      "vehicle": true,
       "content":[
-        {"index":0, "name":"in_pause","description":"", "type":"bool"},
-        {"index":1, "name":"in_resume","description":"", "type":"bool"},
-        {"index":2, "name":"in_is_suspend","description":"", "type":"int"},
-        {"index":3, "name":"task_status","description":"", "type":"int"},
-        {"index":4, "name":"collision_flag","description":"", "type":"bool"},
-        {"index":5, "name":"m_pause","description":"", "type":"bool"},
-        {"index":6, "name":"m_resume","description":"", "type":"bool"},
-        {"index":7, "name":"m_is_suspend","description":"", "type":"double"}
-      ]
+        {"index":0, "name":"in_pause","description":"输入的暂停信号", "type":"bool"},
+        {"index":1, "name":"in_resume","description":"输入的继续信号", "type":"bool"},
+        {"index":2, "name":"in_is_suspend","description":"暂停状态; 0: 非暂停；1: 暂停; 2: 准备继续任务", "type":"double"},
+        {"index":3, "name":"task_status","description":"任务状态", "type":"double"},
+        {"index":4, "name":"collision","description":"阻挡标志", "type":"bool"},
+        {"index":5, "name":"pause","description":"状态变化后的暂停信号", "type":"bool"},
+        {"index":6, "name":"resume","description":"状态变化后的继续信号", "type":"bool"},
+        {"index":7, "name":"m_is_suspend","description":"输出的暂停状态;  0: 非暂停；1: 暂停; 2: 准备继续任务", "type":"double"}
+      ] 
     }
 }
