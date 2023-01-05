@@ -307,5 +307,56 @@
         {"index":6, "name":"resume","description":"状态变化后的继续信号", "type":"bool"},
         {"index":7, "name":"m_is_suspend","description":"输出的暂停状态;  0: 非暂停；1: 暂停; 2: 准备继续任务", "type":"double"}
       ] 
+    },
+    "StorageInfo":{
+      "type":"StorageInfo",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"CamID","description":"相机ID", "type":"int"},
+        {"index":1, "name":"StorageLabel","description":"库位标签", "type":"str"},
+        {"index":2, "name":"StorageID","description":"库位ID", "type":"int"},
+        {"index":3, "name":"locNum","description":"形成库位的折线点个数", "type":"int"}
+      ]        
+    },
+    "VisionParam":{
+      "type":"VisionParam",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"IoU","description":"计算库位占用的IoU", "type":"int"},
+        {"index":1, "name":"rectCoef","description":"计算库位占用时识别框的比例", "type":"double"},
+        {"index":2, "name":"labelNum","description":"tag数量分割阈值", "type":"str"},
+        {"index":3, "name":"ShowImg","description":"是否显示cv图片", "type":"bool"},
+        {"index":4, "name":"workMode","description":"工作模式", "type":"int"},
+        {"index":5, "name":"enable3dQuery","description":"是否开启3D坐标查询", "type":"bool"}
+      ]        
+    },
+    "StorageOccupyState":{
+      "type":"StorageOccupyState",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"CamID","description":"被占用库位所在相机ID", "type":"int"},
+        {"index":1, "name":"StorageID","description":"被占用库位ID", "type":"int"},
+        {"index":2, "name":"OccupyType","description":"是否被占用", "type":"bool"}
+      ]        
+    },
+    "IoUResult":{
+      "type":"IoUResult",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"CamID","description":"相机ID", "type":"int"},
+        {"index":1, "name":"StorageID","description":"库位ID", "type":"str"},
+        {"index":2, "name":"IoU","description":"当前库位计算的IoU值", "type":"int"},
+        {"index":3, "name":"IoUThreshold","description":"设置的IoU阈值", "type":"double"}
+      ]        
+    },
+    "StorageRefineResult":{
+      "type":"StorageRefineResult",
+      "vehicle": false,
+      "content":[
+        {"index":0, "name":"sbinID","description":"库位ID", "type":"str"},
+        {"index":1, "name":"tagNum","description":"当前识别的tag数量", "type":"int"},
+        {"index":2, "name":"binType","description":"纠正后类型", "type":"str"},
+        {"index":3, "name":"hasBin","description":"是否有箱子", "type":"bool"}
+      ]   
     }
 }
