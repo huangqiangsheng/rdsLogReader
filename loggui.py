@@ -415,7 +415,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             yitems = self.getValidYItems(robot)
             d.setYItems(yitems)
             return
-
+        if len(t) <1:
+            return
         ts = np.array(t)
         idx = (np.abs(ts - self.mid_line_t)).argmin()
         j = dict()

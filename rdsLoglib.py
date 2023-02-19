@@ -16,7 +16,10 @@ def num2date(n):
 
 def rbktimetodate(rbktime):
     """ 将rbk的时间戳转化为datatime """
-    return datetime.strptime(rbktime, '%Y-%m-%d %H:%M:%S.%f')
+    if len(rbktime) == 17:
+        return datetime.strptime(rbktime, '%y%m%d %H%M%S.%f')
+    else:
+        return datetime.strptime(rbktime, '%Y-%m-%d %H:%M:%S.%f')
 
 def findrange(ts, t1, t2):
     """ 在ts中寻找大于t1小于t2对应的下标 """
