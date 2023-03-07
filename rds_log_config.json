@@ -361,5 +361,14 @@
         {"index":2, "name":"binType","description":"纠正后类型", "type":"str"},
         {"index":3, "name":"hasBin","description":"是否有箱子", "type":"bool"}
       ]   
+    },
+    "InTheMid":{
+      "type":"InTheMid",
+      "vehicle": true,
+      "content":[
+        {"index":0, "name":"in_the_mid","description":"是否车子在线路中间", "type":"bool"},
+        {"index":1, "name":"next_path[0]","description":"下一段线路的0号id", "type":"double"},
+        {"index":2, "name":"next_path[1]","description":"下一段线路的1号id", "type":"double"}
+      ] 
     }
 }

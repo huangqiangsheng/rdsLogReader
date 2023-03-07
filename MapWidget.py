@@ -20,10 +20,10 @@ import matplotlib.patches as patches
 from matplotlib.textpath import TextPath
 import math
 import logging
-import copy
 import time
 import random
 import re
+from ExtendedComboBox import ExtendedComboBox
 
 def GetGlobalPos(p2b, b2g):
     x = p2b[0] * np.cos(b2g[2]) - p2b[1] * np.sin(b2g[2])
@@ -61,7 +61,7 @@ class RobotModel:
 
         self.robot_data = lines.Line2D([],[], linestyle = '-', color='k')
         self.robot_data_c0 = lines.Line2D([],[], linestyle = '-', linewidth = 2, color='k')
-        self.trajectory = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='m')
+        # self.trajectory = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='m')
         self.trajectory_next = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='mediumpurple')
         self.robot_text = mtext.Text(0,0, "")
 
@@ -102,7 +102,7 @@ class RobotModel:
             self.cur_arrow.set_visible(show)
             self.robot_data.set_visible(show)
             self.robot_data_c0.set_visible(show)
-            self.trajectory.set_visible(show)
+            # self.trajectory.set_visible(show)
             self.trajectory_next.set_visible(show)
     
     def clear_artist(self):
@@ -169,9 +169,9 @@ class AreaData:
         self.name = ""
         self.lines = []
         self.circles = []
-        self.points = []
         self.straights = []
-        self.p_names = []
+        self.p_names = dict()
+        self.bin = dict()
         self.map_x = []
         self.map_y = []
         self.blocks = []
@@ -363,8 +363,7 @@ class Readmap(QThread):
                     if  'ignoreDir' in pt:
                         if pt['ignoreDir'] == True:
                             theta = None
-                    areadata.points.append([x0,y0,theta])
-                    areadata.p_names.append([pt['instanceName']])
+                    areadata.p_names[pt['instanceName']] = [x0,y0,theta]
                     areadata.map_x.append(x0)
                     areadata.map_y.append(y0)
             if 'advancedBlocks' in logicMap:
@@ -379,6 +378,11 @@ class Readmap(QThread):
                     ab.dir = b['dir']
                     ab.desc = b['desc']
                     areadata.blocks.append(ab)
+            if 'binLocationsList' in logicMap:
+                for bs in logicMap['binLocationsList']:
+                    for b in bs['binLocationList']:
+                        if 'pointName' in b and 'instanceName' in b:
+                            areadata.bin[b['instanceName']] = b['pointName']
             print('blocks size', areadata.name, len(areadata.blocks))
         for k in self.robots.keys():
             self.robots[k].clear_artist()
@@ -425,12 +429,78 @@ class PointWidget(QtWidgets.QWidget):
         except:
             pass
 
+class FindRobot(QtWidgets.QWidget):
+    """查找机器人，的对话窗口
+
+    Args:
+        QtWidgets (_type_): _description_
+    """
+    getdata = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
+        self.car_combo = ExtendedComboBox()
+        self.car_label = QtWidgets.QLabel('Robot')
+        car_form = QtWidgets.QFormLayout()
+        car_form.addRow(self.car_label,self.car_combo)
+        self.btn = QtWidgets.QPushButton("Yes")
+        self.btn.clicked.connect(self.getData)
+        vbox = QtWidgets.QVBoxLayout(self)
+        vbox.addLayout(car_form)
+        vbox.addWidget(self.btn)
+        self.setWindowTitle("FindRobot")
+        self.resize(300, 40)
+    def addItems(self,names):
+        self.car_combo.addItems(names)
+    def getData(self):
+        """
+        """
+        try:
+            text = self.car_combo.currentText()
+            self.hide()
+            self.getdata.emit([text])
+        except Exception as err:
+            print(err.args)
+            pass
+
+class FindElement(QtWidgets.QWidget):
+    """查找图元的对话窗口
+
+    Args:
+        QtWidgets (_type_): _description_
+    """
+    getdata = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
+        self.car_combo = ExtendedComboBox()
+        self.car_label = QtWidgets.QLabel('Element')
+        car_form = QtWidgets.QFormLayout()
+        car_form.addRow(self.car_label,self.car_combo)
+        self.btn = QtWidgets.QPushButton("Yes")
+        self.btn.clicked.connect(self.getData)
+        vbox = QtWidgets.QVBoxLayout(self)
+        vbox.addLayout(car_form)
+        vbox.addWidget(self.btn)
+        self.setWindowTitle("FindElement")
+        self.resize(300, 40)
+    def addItems(self,names):
+        self.car_combo.addItems(names)
+    def getData(self):
+        """
+        """
+        try:
+            text = self.car_combo.currentText()
+            self.hide()
+            self.getdata.emit([text])
+        except Exception as err:
+            print(err.args)
+            pass
+
 class CollisionShapeWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent = None):
         super(QtWidgets.QWidget, self).__init__(parent)
-        self.shape_label = QtWidgets.QLabel('checkCollision')
-        self.pos_label = QtWidgets.QLabel('shape')
+        self.pos_label = QtWidgets.QLabel('checkCollision')
+        self.shape_label = QtWidgets.QLabel('shape')
         self.shape_edit = QtWidgets.QLineEdit()
         self.pos_edit = QtWidgets.QLineEdit()
         self.shape_input = QtWidgets.QFormLayout()
@@ -624,13 +694,20 @@ class MapWidget(QtWidgets.QWidget):
         self.draw_colliShape = QtWidgets.QAction("ColliShape", self.userToolbar)
         self.draw_colliShape.triggered.connect(self.addCollisionShape)
 
+        self.find_robot_bar = QtWidgets.QAction("FindRobot", self.userToolbar)
+        self.find_robot_bar.triggered.connect(self.findRobot)
+
+        self.find_element_bar = QtWidgets.QAction("FindElement", self.userToolbar)
+        self.find_element_bar.triggered.connect(self.findElement)
+
         self.draw_clear = QtWidgets.QAction("CLEAR", self.userToolbar)
         self.draw_clear.triggered.connect(self.drawClear)
 
         self.userToolbar.addActions([self.autoMap, self.smap_action])
         self.userToolbar.addSeparator()
-        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape,
-        self.draw_clear])
+        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, self.draw_clear])
+        self.userToolbar.addSeparator()
+        self.userToolbar.addActions([self.find_robot_bar,self.find_element_bar])        
 
         self.scenceToolBar = QtWidgets.QToolBar(self)
         self.areaGroup = QtWidgets.QActionGroup(self)
@@ -655,6 +732,16 @@ class MapWidget(QtWidgets.QWidget):
         self.getColliShape.getdata.connect(self.getCollisionShapeData)
         self.getColliShape.hide()
         self.getColliShape.setWindowFlags(Qt.Window)
+
+        self.find_robot = FindRobot(self)
+        self.find_robot.getdata.connect(self.getRobotName)
+        self.find_robot.hide()
+        self.find_robot.setWindowFlags(Qt.Window)        
+
+        self.find_element = FindElement(self)
+        self.find_element.getdata.connect(self.getElement)
+        self.find_element.hide()
+        self.find_element.setWindowFlags(Qt.Window)        
 
         self.autoMap.setChecked(True)
         self.fig_layout = QtWidgets.QVBoxLayout(self)
@@ -703,6 +790,12 @@ class MapWidget(QtWidgets.QWidget):
     def addCollisionShape(self):
         self.getColliShape.show()
 
+    def findRobot(self):
+        self.find_robot.show()
+
+    def findElement(self):
+        self.find_element.show()
+
     def getLineData(self, event):
         l = lines.Line2D([],[], linestyle = '--', marker = '.', markersize = 6.0, color='r')
         l.set_xdata([event[0][0],event[1][0]])
@@ -741,6 +834,71 @@ class MapWidget(QtWidgets.QWidget):
             self.lineLists[id2] = l2
             self.ax.add_line(self.lineLists[id2])
             self.static_canvas.figure.canvas.draw()
+
+    def getRobotName(self, event:list):
+        """ 回调函数，查找机器人所在位置
+
+        Args:
+            event (list): 消息，第一个为机器人名称
+        """
+        name = event[0]
+        if name in self.read_map.robots:
+            r = self.read_map.robots[name]
+            area_valid = False
+            # 检查区域是否合法
+            for a in self.areaGroup.actions():
+                if a.text() == r.areaName:
+                    a.setChecked(True)
+                    self.changeArea(None)
+                    area_valid = True
+            # 设置查看的范围
+            if area_valid:
+                x0 = r.pos[0]
+                y0 = r.pos[1]
+                xmax = x0 + 10 
+                xmin = x0 - 10
+                ymax = y0 + 10
+                ymin = y0 - 10
+                self.draw_size = [xmin,xmax, ymin, ymax]
+                self.ax.set_xlim(xmin, xmax)
+                self.ax.set_ylim(ymin, ymax)
+                self.static_canvas.figure.canvas.draw()
+
+    def getElement(self, event:list):
+        """ 回调函数，查找图元所在位置
+
+        Args:
+            event (list): 消息，第一个为图元名称
+        """
+        name = event[0] # 点位名称或者库位名称
+        point = []
+        area_valid = False
+        for area_name in self.read_map.map_data:
+            map_data = self.read_map.map_data[area_name]
+            if name in map_data.p_names:
+                p = map_data.p_names[name]
+                point.append(p[0])
+                point.append(p[1])
+                # 检查区域是否合法
+                for a in self.areaGroup.actions():
+                    if a.text() == area_name:
+                        a.setChecked(True)
+                        area_valid = True
+                break
+        # 设置查看的范围
+        if area_valid and len(point) == 2:
+            self.changeArea(None)
+            x0 = p[0]
+            y0 = p[1]
+            xmax = x0 + 1
+            xmin = x0 - 1
+            ymax = y0 + 1
+            ymin = y0 - 1
+            self.draw_size = [xmin,xmax, ymin, ymax]
+            self.ax.set_xlim(xmin, xmax)
+            self.ax.set_ylim(ymin, ymax)
+            self.static_canvas.figure.canvas.draw()
+
     def drawClear(self):
         for p in self.pointLists:
             if self.pointLists[p] != None:
@@ -902,12 +1060,13 @@ class MapWidget(QtWidgets.QWidget):
                 for b in map_data.blocks:
                     pass
                 pr = 0.25
-                for (pt,name) in zip(map_data.points, map_data.p_names):
+                for name in map_data.p_names:
+                    pt = map_data.p_names[name]
                     circle = patches.Circle((pt[0], pt[1]), pr, facecolor='orange',
                     edgecolor=(0, 0.8, 0.8), linewidth=3, alpha=0.5)
                     self.mapData[area_name].append(circle)
                     self.ax.add_patch(circle)
-                    text_path = TextPath((pt[0],pt[1]), name[0], size = 0.2)
+                    text_path = TextPath((pt[0],pt[1]), name, size = 0.2)
                     text_path = patches.PathPatch(text_path, ec="none", lw=3, fc="k")
                     self.mapData[area_name].append(text_path)
                     self.ax.add_patch(text_path)
@@ -928,6 +1087,12 @@ class MapWidget(QtWidgets.QWidget):
                     tmp_action.setChecked(True)
             self.autoUpdateArea()
             ## model
+            self.find_robot.addItems(self.read_map.robots.keys())
+            element = []
+            for area_name in self.read_map.map_data:
+                map_data = self.read_map.map_data[area_name]
+                element.extend(list(map_data.p_names.keys()))
+            self.find_element.addItems(set(element))
             for k in self.read_map.robots.keys():
                 r = self.read_map.robots[k]
                 if r.pos[0] == None:
@@ -941,7 +1106,7 @@ class MapWidget(QtWidgets.QWidget):
                 self.ax.add_line(r.robot_data_c0)
                 self.ax.add_patch(r.cur_arrow) #add robot arrow again
                 self.ax.add_artist(r.robot_text)
-                self.ax.add_line(r.trajectory)
+                # self.ax.add_line(r.trajectory)
                 self.ax.add_line(r.trajectory_next)
 
             self.setWindowTitle("{} : {}".format('MapViewer', os.path.split(self.map_name)[1]))
@@ -961,8 +1126,8 @@ class MapWidget(QtWidgets.QWidget):
         if name in self.read_map.robots:
             r = self.read_map.robots[name]
             r.areaName = areaName
-            r.trajectory.set_xdata(x)
-            r.trajectory.set_ydata(y)
+            # r.trajectory.set_xdata(x)
+            # r.trajectory.set_ydata(y)
             r.trajectory_next.set_xdata(xn)
             r.trajectory_next.set_ydata(yn)
             r.pos[0] = x0
