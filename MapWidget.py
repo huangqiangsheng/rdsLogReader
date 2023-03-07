@@ -875,6 +875,8 @@ class MapWidget(QtWidgets.QWidget):
         area_valid = False
         for area_name in self.read_map.map_data:
             map_data = self.read_map.map_data[area_name]
+            if name in map_data.bin:
+                name = map_data.bin[name]
             if name in map_data.p_names:
                 p = map_data.p_names[name]
                 point.append(p[0])
@@ -1092,6 +1094,7 @@ class MapWidget(QtWidgets.QWidget):
             for area_name in self.read_map.map_data:
                 map_data = self.read_map.map_data[area_name]
                 element.extend(list(map_data.p_names.keys()))
+                element.extend(list(map_data.bin.keys()))
             self.find_element.addItems(set(element))
             for k in self.read_map.robots.keys():
                 r = self.read_map.robots[k]
