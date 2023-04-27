@@ -32,7 +32,8 @@
         { "index": 27, "name": "cur_odo", "type": "double"},
         { "index": 28, "name": "near_ids", "type": "str"},
         { "index": 29, "name": "cur_area", "type": "str"},
-        { "index": 30, "name": "hasGoods", "type": "bool"}
+        { "index": 30, "name": "hasGoods", "type": "bool"},
+        { "index": 31, "name": "error", "type": "str"}
       ]
     },
     "GET": {
