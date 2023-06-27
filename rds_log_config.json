@@ -132,7 +132,7 @@
         { "index": 3, "name": "total_size", "type": "str", "description":"任务数量"},
         { "index": 4, "name": "outListSize", "type": "double", "description":"out_list数量"},
         { "index": 5, "name": "lastOutListSize", "type": "double", "description":"上个周期out_list数量"}
-      ]   
+      ]
     },
     "curOrderState":{
       "type": "curOrderState",
@@ -142,7 +142,7 @@
         { "index": 2, "name": "cur_order_state", "type": "double"},
         { "index": 3, "name": "robot_state", "type": "bool"},
         { "index": 5, "name": "order_type", "type": "double"}
-      ]      
+      ]
     },
     "curOrderState2":{
       "type": "curOrderState2",
@@ -157,17 +157,16 @@
       "type": "runCollision",
       "content": [
         { "index": 0, "name": "outListSize", "type": "double"},
-        { "index": 1, "name": "send_id", "type": "double"},
-        { "index": 2, "name": "CMDSize", "type": "double"},
-        { "index": 3, "name": "moveTaskListSize", "type": "double"},
-        { "index": 4, "name": "exListSize", "type": "double"}
+        { "index": 1, "name": "exListSize", "type": "double"},
+        { "index": 2, "name": "collisionFlag", "type": "bool"}
       ]      
     },
     "runExcutor":{
       "type": "runExcutor",
       "content": [
         { "index": 0, "name": "state", "type": "double"},
-        { "index": 1, "name": "size", "type": "double"}
+        { "index": 1, "name": "excutor_list_size", "type": "double"},
+        { "index": 1, "name": "out_list_size", "type": "double"}
       ]      
     },
     "finishState":{
@@ -371,5 +370,71 @@
         {"index":1, "name":"next_path[0]","description":"下一段线路的0号id", "type":"double"},
         {"index":2, "name":"next_path[1]","description":"下一段线路的1号id", "type":"double"}
       ] 
+    },
+    "TCPConnection":{
+      "type":"TCPConnection",
+      "content":[
+        {"index":0, "name":"status", "type":"int64","description":"连接状态，2为连接正常"},
+        {"index":1, "name":"native_handler", "type":"int64","description":"原始TCP handler"},
+        {"index":2, "name":"local_ip", "type":"str","description":"本地ip"},
+        {"index":3, "name":"local_port", "type":"int64","description":"本地端口"},
+        {"index":4, "name":"remote_ip", "type":"str","description":"远端ip"},
+        {"index":5, "name":"remote_port", "type":"int64","description":"远端端口"}
+      ]
+    },
+    "networkDelay":{
+      "type":"networkDelay",
+      "content":[
+        {"index":0, "name":"delay", "type":"int64","description":"机器人延时，单位ms"}
+      ]
+    },
+    "RDSCommand":{
+      "type":"RDSCommand",
+      "content":[
+        {"index":0, "name":"type", "type":"str","description":"添加任务类型，push或者add"},
+        {"index":1, "name":"status", "type":"bool","description":"是否成功"},
+        {"index":2, "name":"size", "type":"int64","description":"任务队列中的任务数量"},
+        {"index":3, "name":"duration'", "type":"json","description":"用时，ms"}
+      ]
+    },
+    "RobotCommand":{
+      "type":"RobotCommand",
+      "content":[
+        {"index":0, "name":"time", "type":"int64","description":"发送次数"},
+        {"index":1, "name":"duration", "type":"int64","description":"发送用时"},
+        {"index":2, "name":"size", "type":"int64","description":"任务队列中任务数量"},
+        {"index":3, "name":"data", "type":"json","description":"小车名，端口号，api种类"},
+        {"index":4, "name":"cmd", "type":"json","description":"api数据"}
+      ]
+    },
+    "SendRetry":{
+      "type":"SendRetry",
+      "content":[
+        {"index":0, "name":"time", "type":"int64","description":"重试发送次数"},
+        {"index":1, "name":"debug_str", "type":"json","description":"小车名，端口号，api种类"}
+      ]
+    },
+  "receiveJson":{
+      "type":"receiveJson",
+      "content":[
+        {"index":0, "name":"local_end", "type":"str","description":"本地连接"},
+        {"index":1, "name":"remote_end", "type":"str","description":"远端连接"},
+        {"index":2, "name":"rcv", "type":"json","description":"小车回复数据"}
+      ]
+    },
+  "InternalMsg":{
+      "type":"InternalMsg",
+      "content":[
+        {"index":0, "name":"data_nsec", "type":"int64","description":"数据帧时间戳，单位ms"},
+        {"index":1, "name":"timestamp", "type":"str","description":"数据帧可读时间戳，%Y-%m-%d %H:%M:%S"},
+        {"index":2, "name":"time_dist", "type":"int64","description":"本地与远端时间距离，时间戳差"},
+        {"index":3, "name":"lock_info", "type":"json","description":"控制权信息"},
+        {"index":4, "name":"x", "type":"double","description":"x"},
+        {"index":5, "name":"y", "type":"double","description":"y"},
+        {"index":6, "name":"angle", "type":"double","description":"angle"},
+        {"index":7, "name":"current_station", "type":"str","description":"current_station"},
+        {"index":8, "name":"last_station", "type":"str","description":"last_station"},
+        {"index":9, "name":"confidence", "type":"double","description":"confidence"}
+      ]
     }
 }

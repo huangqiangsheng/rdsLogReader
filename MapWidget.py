@@ -556,6 +556,81 @@ class CollisionShapeWidget(QtWidgets.QWidget):
             print(err.args)
             pass
 
+class GoodsShapeWidget(QtWidgets.QWidget):
+    getdata = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
+        self.goods_label = QtWidgets.QLabel('largeGoodsShape')
+        self.goods_edit = QtWidgets.QLineEdit()
+        self.goods_input = QtWidgets.QFormLayout()
+        self.goods_input.addRow(self.goods_label,self.goods_edit)
+        self.goods_edit.setPlaceholderText("[largeGoodsShape|(-1.6501:-0.969999)(-1.6501:0.970001)(1.6499:0.969999)(1.6499:-0.970001)(-1.6501:-0.969999)]")
+        self.pos_label = QtWidgets.QLabel('rTopoPos')
+        self.pos_edit = QtWidgets.QLineEdit()
+        self.pos_input = QtWidgets.QFormLayout()
+        self.pos_input.addRow(self.pos_label,self.pos_edit)
+        self.pos_edit.setPlaceholderText("[rTopoPos|-2.792|-1.171|-0.011|1|45|149|1.000|0|0|0|2|0.004|0.000|0.000|1|0|0|0|0|0|1|a88692|2|0|1.000|(45,149,1)||402464.204|(149,)|PQ-01|1|()]")
+        self.btn = QtWidgets.QPushButton("Yes")
+        self.btn.clicked.connect(self.getData)
+        vbox = QtWidgets.QVBoxLayout(self)
+        vbox.addLayout(self.pos_input)
+        vbox.addLayout(self.goods_input)
+        vbox.addWidget(self.btn)
+        self.setWindowTitle("GoodsShape Input")
+
+    def getData(self):
+        """
+        """
+        try:
+            shape_txt = self.goods_edit.text()
+            if shape_txt == "":
+                shape_txt = self.goods_edit.placeholderText()
+            pos_txt = self.pos_edit.text()
+            if pos_txt == "":
+                pos_txt = self.pos_edit.placeholderText()
+            print(pos_txt == None, shape_txt == None, pos_txt, shape_txt)
+            pos_regex = re.compile("\[rTopoPos\|(.*)\]")
+            goods_regex = re.compile("\[largeGoodsShape\|(.*)\]")
+            pos_out = pos_regex.match(pos_txt)
+            goods_out = goods_regex.match(shape_txt)
+            shape = []
+            if pos_out and goods_out:
+                pos_data = pos_out.groups()
+                goods_data = goods_out.groups()
+                pos_valus = pos_data[0].split('|')
+                goods_values = goods_data[0].replace('(','')
+                goods_values = goods_values.split(')')
+                goods_values = [t.split(':') for t in goods_values]
+                x = []
+                y = []
+                for g in goods_values:
+                    if g == '':
+                        continue
+                    has_space = False
+                    for v in g:
+                        if v == '':
+                            has_space = True
+                            break
+                    if has_space:
+                        continue
+                    if len(g) == 2:
+                        x.append(float(g[0]))
+                        y.append(float(g[1]))
+                x.append(x[0])
+                y.append(y[0])
+                goods_values = np.array([x,y])
+                def getShape(x,y,theta, shape):
+                    b2g = np.array([x,y,theta])
+                    print(shape)
+                    shape = GetGlobalPos(shape,b2g)
+                    return shape
+                shape = getShape(float(pos_valus[0]), float(pos_valus[1]), float(pos_valus[2]), goods_values)
+            self.hide()
+            self.getdata.emit(shape)
+        except Exception as err:
+            print(err.args)
+            pass
+
 class LineWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent = None):
@@ -693,6 +768,8 @@ class MapWidget(QtWidgets.QWidget):
         self.draw_curve.triggered.connect(self.addCurve)
         self.draw_colliShape = QtWidgets.QAction("ColliShape", self.userToolbar)
         self.draw_colliShape.triggered.connect(self.addCollisionShape)
+        self.draw_goodsShape = QtWidgets.QAction("GoodsShape", self.userToolbar)
+        self.draw_goodsShape.triggered.connect(self.addGoodsShape)
 
         self.find_robot_bar = QtWidgets.QAction("FindRobot", self.userToolbar)
         self.find_robot_bar.triggered.connect(self.findRobot)
@@ -705,7 +782,7 @@ class MapWidget(QtWidgets.QWidget):
 
         self.userToolbar.addActions([self.autoMap, self.smap_action])
         self.userToolbar.addSeparator()
-        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, self.draw_clear])
+        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, self.draw_goodsShape, self.draw_clear])
         self.userToolbar.addSeparator()
         self.userToolbar.addActions([self.find_robot_bar,self.find_element_bar])        
 
@@ -732,6 +809,12 @@ class MapWidget(QtWidgets.QWidget):
         self.getColliShape.getdata.connect(self.getCollisionShapeData)
         self.getColliShape.hide()
         self.getColliShape.setWindowFlags(Qt.Window)
+
+        self.getGoodsShape = GoodsShapeWidget(self)
+        self.getGoodsShape.getdata.connect(self.getGoodsShapeData)
+        self.getGoodsShape.hide()
+        self.getGoodsShape.setWindowFlags(Qt.Window)
+
 
         self.find_robot = FindRobot(self)
         self.find_robot.getdata.connect(self.getRobotName)
@@ -790,6 +873,9 @@ class MapWidget(QtWidgets.QWidget):
     def addCollisionShape(self):
         self.getColliShape.show()
 
+    def addGoodsShape(self):
+        self.getGoodsShape.show()
+
     def findRobot(self):
         self.find_robot.show()
 
@@ -835,6 +921,19 @@ class MapWidget(QtWidgets.QWidget):
             self.ax.add_line(self.lineLists[id2])
             self.static_canvas.figure.canvas.draw()
 
+    def getGoodsShapeData(self, event):
+        try:
+            l1 = lines.Line2D([],[], linestyle = '--', color='r')
+            s1 = event
+            l1.set_xdata(s1[0])
+            l1.set_ydata(s1[1])     
+            id = str(int(round(time.time()*1000)))
+            if (id not in self.lineLists or self.lineLists[id] == None):
+                self.lineLists[id] = l1
+                self.ax.add_line(self.lineLists[id])
+                self.static_canvas.figure.canvas.draw()
+        except Exception as err:
+                    print(err.args)
     def getRobotName(self, event:list):
         """ 回调函数，查找机器人所在位置
 
