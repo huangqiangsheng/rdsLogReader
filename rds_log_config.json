@@ -436,5 +436,12 @@
         {"index":8, "name":"last_station", "type":"str","description":"last_station"},
         {"index":9, "name":"confidence", "type":"double","description":"confidence"}
       ]
+    },
+    "SendDoorCommand":{
+      "type":"SendDoorCommand",
+      "content":[
+        {"index":0,"name":"door_command","type":"str", "description":"门控指令"},
+        {"index":1,"name":"send_ok", "type":"str", "description":"指令是否发送成功"}
+      ]
     }
 }
