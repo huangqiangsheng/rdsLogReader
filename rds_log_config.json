@@ -223,7 +223,7 @@
         { "index": 9, "name": "accessflag", "type": "bool"},
         { "index": 10, "name": "cmd", "type": "str"},
         { "index": 11, "name": "totalCmd", "type": "int"},
-        {"index":11, "name":"forbidden", "type":"bool"}
+        {"index":12, "name":"forbidden", "type":"bool"}
       ]      
     },
     "DoorStatus":{
