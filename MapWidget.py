@@ -1,5 +1,6 @@
 from multiprocessing import set_forkserver_preload
 from tkinter.messagebox import NO
+from PyQt5.QtWidgets import QWidget
 import matplotlib
 matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import (
@@ -10,7 +11,7 @@ import matplotlib.text as mtext
 from matplotlib.patches import Circle, Polygon
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtCore import *
-from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
 import numpy as np
 import json as js
 import os
@@ -62,7 +63,7 @@ class RobotModel:
         self.robot_data = lines.Line2D([],[], linestyle = '-', color='k')
         self.robot_data_c0 = lines.Line2D([],[], linestyle = '-', linewidth = 2, color='k')
         # self.trajectory = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='m')
-        self.trajectory_next = lines.Line2D([],[], linestyle = '', marker = 'o', markersize = 2.0, color='mediumpurple')
+        self.trajectory_next = lines.Line2D([],[], linestyle = '-', marker = 'o', markersize = 2.0, color='mediumpurple')
         self.robot_text = mtext.Text(0,0, "")
 
     def updateByPos(self, areaName = None):
@@ -164,14 +165,46 @@ class AdancedBlock:
         self.property = []
         self.desc = []
 
+class Line:
+    def __init__(self, pts) -> None:
+        self.points = pts
+        self.d2s = []
+        ds = 0
+        for i in range(len(self.points)):
+            if i == 0:
+                self.d2s.append(0)
+                continue
+            cur_ds = math.hypot(self.points[i, 0] - self.points[i-1, 0], self.points[i, 1] - self.points[i-1,1])
+            ds += cur_ds
+            self.d2s.append(ds)
+    def getIdByPercentage(self, p)->int:
+        if len(self.d2s) < 1:
+            return -1
+        dist = self.d2s[-1] * p
+        ind = len(self.d2s) - 1
+        for (i, s) in enumerate(self.d2s):
+            if s <= dist:
+                ind = i
+            else:
+                break
+        return ind 
+    def getPoits(self, sp, ep):
+        if len(self.d2s) < 1:
+            print("no path", sp, ep)
+            return [], []
+        sid = self.getIdByPercentage(sp)
+        eid = self.getIdByPercentage(ep)+1
+        print("sid-eid",type(self.points), sid, eid)
+        return self.points[sid:eid:2, 0], self.points[sid:eid:2, 1]
+
 class AreaData:
     def __init__(self) -> None:
         self.name = ""
-        self.lines = []
+        self.lines = dict()
         self.circles = []
-        self.straights = []
         self.p_names = dict()
         self.bin = dict()
+        self.straights = []
         self.map_x = []
         self.map_y = []
         self.blocks = []
@@ -216,10 +249,10 @@ class Readmap(QThread):
                 y2 = endPos['y']
             areadata.straights.append([(x1,y1),(x2,y2)])
         def f3order(p0, p1, p2, p3):
-            dt = 0.001
+            dt = 0.01
             t = 0
             v = []
-            while(t < 1.0):
+            while(True):
                 s = 1 - t
                 x = (p0 * s * s * s
                         + 3.0 * p1 * s * s * t
@@ -227,12 +260,20 @@ class Readmap(QThread):
                         + p3 * t * t * t)
                 v.append(x)
                 t = t + dt
-            return v 
+                if t > 1.0:
+                    t = 1
+                    s = 0
+                    x = (p0 * s * s * s
+                            + 3.0 * p1 * s * s * t
+                            + 3.0 * p2 * s * t * t
+                            + p3 * t * t * t)
+                    v.append(x)
+                    return v
         def f5order(p0, p1, p2, p3, p4, p5):
-            dt = 0.001
+            dt = 0.01
             t = 0
             v = []
-            while(t < 1.0):
+            while(True):
                 s = 1 - t
                 x = (p0 * s * s * s * s * s 
                         + 5.0 * p1 * s * s * s * s * t
@@ -242,7 +283,17 @@ class Readmap(QThread):
                         + p5 * t * t * t * t * t)
                 v.append(x)
                 t = t + dt
-            return v 
+                if t > 1.0:
+                    t = 1.0
+                    s = 0.0
+                    x = (p0 * s * s * s * s * s 
+                            + 5.0 * p1 * s * s * s * s * t
+                            + 10.0 * p2 * s * s * s * t * t
+                            + 10.0 * p3 * s * s * t * t * t
+                            + 5.0 * p4 * s * t *t * t * t
+                            + p5 * t * t * t * t * t)
+                    v.append(x)
+                    return v
         for area in self.js["areas"]:
             areadata = AreaData()
             print("areaname:",area["name"])
@@ -252,7 +303,8 @@ class Readmap(QThread):
             if 'advancedCurves' in logicMap:
                 for line in logicMap['advancedCurves']:
                     if line['className'] == 'BezierPath'\
-                        or line['className'] == 'DegenerateBezier':
+                        or line['className'] == 'DegenerateBezier'\
+                            or line['className'] == 'StraightPath':
                         x0 = 0
                         y0 = 0
                         x1 = 0
@@ -265,13 +317,13 @@ class Readmap(QThread):
                             x0 = line['startPos']['pos']['x']
                         if 'y' in line['startPos']['pos']:
                             y0 = line['startPos']['pos']['y']
-                        if 'x' in line['controlPos1']:
+                        if 'controlPos1' in line and 'x' in line['controlPos1']:
                             x1 = line['controlPos1']['x']
-                        if 'y' in line['controlPos1']:
+                        if 'controlPos1' in line and 'y' in line['controlPos1']:
                             y1 = line['controlPos1']['y']
-                        if 'x' in line['controlPos2']:
+                        if 'controlPos2' in line and 'x' in line['controlPos2']:
                             x2 = line['controlPos2']['x']
-                        if 'y' in line['controlPos2']:
+                        if 'controlPos2' in line and 'y' in line['controlPos2']:
                             y2 = line['controlPos2']['y']
                         if 'x' in line['endPos']['pos']:
                             x3 = line['endPos']['pos']['x']
@@ -285,8 +337,16 @@ class Readmap(QThread):
                         elif line['className'] == 'DegenerateBezier':
                             xs = np.array(f5order(x0, x1, x1, x2, x2, x3))
                             ys = np.array(f5order(y0, y1, y1, y2, y2, y3))
-                        points = np.vstack((xs,ys))  
-                        areadata.lines.append(points.T)
+                        elif line['className'] == 'StraightPath':
+                            xs = np.array(f3order(x0, x0, x3, x3))
+                            ys = np.array(f3order(y0, y0, y3, y3))            
+                        points = np.vstack((xs,ys))
+                        instance_name = line["instanceName"]
+                        name = ""
+                        for n in instance_name:
+                            if n.isdigit() or n == "-":
+                                name+=n
+                        areadata.lines[name] = Line(points.T)
                     elif line['className'] == 'ArcPath':
                         x1 = 0
                         y1 = 0
@@ -325,8 +385,6 @@ class Readmap(QThread):
                                 areadata.circles.append([x, y, r, np.rad2deg(theta3), np.rad2deg(theta1)])
                         else:
                             areadata.straights.append([(x1,y1),(x3,y3)])
-                    elif line['className'] == 'StraightPath':
-                        addStr(areadata, line['startPos']['pos'],line['endPos']['pos'])
             if 'primitiveList' in logicMap:
                 for line in logicMap['primitiveList']:
                     if line['className'] == 'RoundLine':
@@ -631,6 +689,46 @@ class GoodsShapeWidget(QtWidgets.QWidget):
             print(err.args)
             pass
 
+class DrawPath(QtWidgets.QWidget):
+    getdata = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.path_label = QtWidgets.QLabel('Path')
+        self.path_edit = QtWidgets.QLineEdit()
+        self.path_input = QtWidgets.QFormLayout()
+        self.path_input.addRow(self.path_label,self.path_edit)
+        self.path_edit.setPlaceholderText("")
+        self.spacer_label = QtWidgets.QLabel('spacer')
+        self.spacer_edit = QtWidgets.QLineEdit()
+        self.spacer_input = QtWidgets.QFormLayout()
+        self.spacer_input.addRow(self.spacer_label,self.spacer_edit)
+        self.spacer_edit.setPlaceholderText("-")
+        self.btn = QtWidgets.QPushButton("Yes")
+        self.btn.clicked.connect(self.getData)
+        vbox = QtWidgets.QVBoxLayout(self)
+        vbox.addLayout(self.path_input)
+        vbox.addLayout(self.spacer_input)
+        vbox.addWidget(self.btn)
+        self.setWindowTitle("Path Input")
+
+    def getData(self):
+        """
+        """
+        try:
+            path_txt = self.path_edit.text()
+            spacer_txt = self.spacer_edit.text()
+            print("path", path_txt, spacer_txt)
+            if path_txt == "":
+                return
+            if spacer_txt == "":
+                spacer_txt = self.spacer_edit.placeholderText()
+            paths = path_txt.split(spacer_txt)
+            self.getdata.emit(paths)
+            self.hide()
+        except Exception as err:
+            print("err",err.args)
+            pass
+
 class LineWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent = None):
@@ -770,6 +868,8 @@ class MapWidget(QtWidgets.QWidget):
         self.draw_colliShape.triggered.connect(self.addCollisionShape)
         self.draw_goodsShape = QtWidgets.QAction("GoodsShape", self.userToolbar)
         self.draw_goodsShape.triggered.connect(self.addGoodsShape)
+        self.draw_path = QtWidgets.QAction("Path", self.userToolbar)
+        self.draw_path.triggered.connect(self.drawPath)
 
         self.find_robot_bar = QtWidgets.QAction("FindRobot", self.userToolbar)
         self.find_robot_bar.triggered.connect(self.findRobot)
@@ -782,7 +882,8 @@ class MapWidget(QtWidgets.QWidget):
 
         self.userToolbar.addActions([self.autoMap, self.smap_action])
         self.userToolbar.addSeparator()
-        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, self.draw_goodsShape, self.draw_clear])
+        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, 
+                                     self.draw_goodsShape, self.draw_path, self.draw_clear])
         self.userToolbar.addSeparator()
         self.userToolbar.addActions([self.find_robot_bar,self.find_element_bar])        
 
@@ -815,6 +916,13 @@ class MapWidget(QtWidgets.QWidget):
         self.getGoodsShape.hide()
         self.getGoodsShape.setWindowFlags(Qt.Window)
 
+        self.getPath = DrawPath(self)
+        self.getPath.getdata.connect(self.getPathData)
+        self.getPath.hide()
+        self.getPath.setWindowFlags(Qt.Window)
+
+        self.getGoodsShape.hide()
+        self.getGoodsShape.setWindowFlags(Qt.Window)
 
         self.find_robot = FindRobot(self)
         self.find_robot.getdata.connect(self.getRobotName)
@@ -875,6 +983,9 @@ class MapWidget(QtWidgets.QWidget):
 
     def addGoodsShape(self):
         self.getGoodsShape.show()
+        
+    def drawPath(self):
+        self.getPath.show()
 
     def findRobot(self):
         self.find_robot.show()
@@ -933,7 +1044,30 @@ class MapWidget(QtWidgets.QWidget):
                 self.ax.add_line(self.lineLists[id])
                 self.static_canvas.figure.canvas.draw()
         except Exception as err:
-                    print(err.args)
+            print(err.args)
+    def getPathData(self, event):
+        try:
+            for i in range(len(event)):
+                if i == 0:
+                    continue
+                k = event[i-1] + '-' + event[i]
+                in_map = False
+                for area_name in self.read_map.map_data:
+                    map_data = self.read_map.map_data[area_name]
+                    if k not in map_data.lines:
+                        continue
+                    path = Polygon(map_data.lines[k].points, closed=False, facecolor='none', edgecolor='red', lw=5)
+                    in_map = True
+                    id = str(int(round(time.time()*1000)))
+                    if (id not in self.lineLists or self.lineLists[id] == None):
+                        self.lineLists[id] = path
+                        self.ax.add_line(self.lineLists[id])
+                if in_map == False:
+                    print("cannot find path: ", k)
+                    return
+                self.static_canvas.figure.canvas.draw()
+        except Exception as err:
+            print(err.args)
     def getRobotName(self, event:list):
         """ 回调函数，查找机器人所在位置
 
@@ -1145,8 +1279,8 @@ class MapWidget(QtWidgets.QWidget):
             for area_name in self.read_map.map_data:
                 map_data = self.read_map.map_data[area_name]
                 self.mapData[area_name] = []
-                for line in map_data.lines:
-                    path = Polygon(line, closed=False, facecolor='none', edgecolor='orange', lw=1)
+                for k in map_data.lines:
+                    path = Polygon(map_data.lines[k].points, closed=False, facecolor='none', edgecolor='orange', lw=1)
                     self.mapData[area_name].append(path)
                     self.ax.add_patch(path)
                 for circle in map_data.circles:
@@ -1172,7 +1306,7 @@ class MapWidget(QtWidgets.QWidget):
                     self.mapData[area_name].append(text_path)
                     self.ax.add_patch(text_path)
                     if pt[2] != None:
-                        arrow = patches.Arrow(pt[0],pt[1], pr * np.cos(pt[2]), pr*np.sin(pt[2]), pr)
+                        arrow = patches.Arrow(pt[0],pt[1], pr * np.cos(pt[2]), pr*np.sin(pt[2]), width = pr)
                         self.mapData[area_name].append(arrow)
                         self.ax.add_patch(arrow)
 
@@ -1223,24 +1357,46 @@ class MapWidget(QtWidgets.QWidget):
             self.ax.add_artist(self.time_text)
             self.static_canvas.figure.canvas.draw()
     
-    def readtrajectory(self, name, areaName, x, y, xn, yn, x0, y0, r0, t0):
+    def getOccupyPath(self,area_name, s,e,sp, ep, xn, yn):
+        if area_name not in self.read_map.map_data:
+            return
+        map_data = self.read_map.map_data[area_name]
+        k = str(s)+"-"+str(e)
+        if k not in map_data.lines:
+            return
+        (tmpx, tmpy) = map_data.lines[k].getPoits(float(sp), float(ep))
+        # print('tmpx, tmpy', tmpx, tmpy)
+        xn.extend(tmpx)
+        yn.extend(tmpy)
+    def readtrajectory(self, name, areaName, path:str, x0, y0, r0, t0):
         self.time_text.set_text(str(t0))
         if name in self.read_map.robots:
             r = self.read_map.robots[name]
             r.areaName = areaName
-            # r.trajectory.set_xdata(x)
-            # r.trajectory.set_ydata(y)
+            p = path[path.find("("):]
+            str_paths = p[1:-1].split(")(")
+            print("str_paths", str_paths, p)
+            xn, yn = [], []
+            for p in str_paths:
+                print("p", p)
+                data = p.split(",")
+                if len(data) != 4:
+                    continue
+                (s,e,sp, ep) = data
+                print(name,"path", s,e,sp,ep)
+                self.getOccupyPath(areaName, s, e, sp, ep, xn, yn)
+                # print(name, xn, yn)
             r.trajectory_next.set_xdata(xn)
             r.trajectory_next.set_ydata(yn)
             r.pos[0] = x0
             r.pos[1] = y0
             r.pos[2] = r0
             r.updateByPos(self.cur_area)
-            if len(self.draw_size) != 4:
-                xmax = max(x) + 10 
-                xmin = min(x) - 10
-                ymax = max(y) + 10
-                ymin = min(y) - 10
+            if len(self.draw_size) != 4 and len(xn) > 0:
+                xmax = max(xn) + 10 
+                xmin = min(xn) - 10
+                ymax = max(yn) + 10
+                ymin = min(yn) - 10
                 self.draw_size = [xmin,xmax, ymin, ymax]
                 self.ax.set_xlim(xmin, xmax)
                 self.ax.set_ylim(ymin, ymax)
