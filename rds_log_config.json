@@ -459,5 +459,11 @@
         {"index":1, "name":"current_user", "type":"str", "description":"当前所有者"},
         {"index":2,"name":"command", "type":"int","description":"指令"}
       ]
+    },
+    "BlockGroupOwnerChange":{
+      "type":"BlockGroupOwnerChange",
+      "content":[
+        {"index":0, "name":"owner", "type":"str", "description":"占用者"}
+      ]
     }
 }
