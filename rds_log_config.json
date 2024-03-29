@@ -466,5 +466,27 @@
       "content":[
         {"index":0, "name":"owner", "type":"str", "description":"占用者"}
       ]
+    },
+    "about_to_finish_current_order": {
+      "type": "about_to_finish_current_order",
+      "content": [
+        {"index": 0,"name": "value","type": "int","description": "是否即将完成"}
+      ]
+    },
+    "UnfinishedPathTime":{
+      "type": "UnfinishedPathTime",
+      "content":[
+        {"index": 0,"name": "time","type": "double","description": "未完成路径时间"}
+      ]
+    },
+    "RobotSchedule":{
+      "type":"RobotSchedule",
+      "content":[
+        {"index":0, "name":"cur_order_state", "type":"str","description":"当前订单状态"},
+        {"index":1, "name":"cur_order_id", "type":"str","description":"当前订单id"},
+        {"index":2, "name":"future_order_size", "type":"int","description":"future_order_size"},
+        {"index":3, "name":"empty_c", "type":"int","description":"empty_c"},
+        {"index":4, "name":"cur_order_empty_c", "type":"int","description":"cur_order_empty_c"}
+      ]
     }
 }
