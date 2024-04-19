@@ -306,6 +306,123 @@
         {"index":-1, "name":"TCost","description":"控制周期", "type":"double"}
       ]        
     },
+
+    "solve completely":{
+      "type":"solve completely",
+      "vehicle": false,
+      "MAPFSolver": true,
+      "content":[
+        {"index":0,"name":"n_train", "description":"训练代数", "type":"double"},
+        {"index":1,"name":"n_guide", "description":"连续冲突引导代数","type":"double"},
+        {"index":2,"name":"n_cvgce", "description":"收敛代数","type":"double"},
+        {"index":3,"name":"p_train", "description":"每代训练时间（指数加权平均）","type":"double"},
+        {"index":4,"name":"t_train", "description":"训练时间","type":"double"},
+        {"index":5,"name":"complete", "description":"任务完成计数, 冲突为0的时候才关注 complete", "type":"double"},
+        {"index":6,"name":"conflict", "description":"冲突计数", "type": "double"},
+        {"index":7,"name":"distance", "description":"执行代价", "type": "double"},
+        {"index":8,"name":"group_agv", "type": "double"},
+        {"index":9,"name":"cpus", "description":"自动配置线程的数量", "type": "double"}
+      ]   
+    },
+    "convergence":{
+      "type":"convergence",
+      "vehicle": false,
+      "MAPFSolver": true,
+      "content":[
+        {"index":0,"name":"convergence", "description":"训练评分估计", "type":"double"}
+      ]   
+    },
+    "start":{
+      "type":"start",
+      "vehicle": false,
+      "MAPFSolver": true,
+      "content":[
+        {"index":0,"name":"time", "description":"训练代数", "type":"double"},
+        {"index":1,"name":"stable", "description":"连续冲突引导代数","type":"double"},
+        {"index":2,"name":"sample", "description":"收敛代数","type":"double"},
+        {"index":3,"name":"parallel_lifes_mapfsolver", "description":"MAPFSolver 运行寿命","type":"double"},
+        {"index":4,"name":"parallel_right_mapfsolver", "description":"MAPFSolver 反运行寿命","type":"double"},
+        {"index":5,"name":"get_thread_id", "type":"double"}
+      ]   
+    },
+    "goto start":{
+      "type":"goto start",
+      "vehicle": false,
+      "MAPFSolver": true,
+      "content":[
+        {"index":0,"name":"parallel_right_mapfsolver", "description":"MAPFSolver 反运行寿命","type":"double"},
+        {"index":1,"name":"get_thread_id", "type":"double"}
+      ]   
+    },
+    "EXRGA status":{
+      "type":"EXRGA status",
+      "vehicle": false,
+      "GM": true,
+      "content":[
+        {"index":0,"name":"convergence", "description":"是否收敛","type":"double"},
+        {"index":1,"name":"crash_list_size", "type":"double"}
+      ]   
+    },
+    "EXRGA finish":{
+      "type":"EXRGA finish",
+      "vehicle": false,
+      "GM": true,
+      "content":[
+        {"index":0,"name":"crash_list_ga_size", "type":"double"},
+        {"index":1,"name":"num_epoch", "type":"double"}
+      ]   
+    },
+    "setPath":{
+      "type":"setPath",
+      "vehicle": true,
+      "content":[
+        {"index":0,"name":"path_size", "type":"double"},
+        {"index":1,"name":"path", "type":"str"}
+      ]   
+    },
+    "running":{
+      "type":"running",
+      "vehicle": true,
+      "GM": true,
+      "content":[
+        {"index":0,"name":"rst", "type":"str"},
+        {"index":1,"name":"act", "description":"是否有控制权", "type":"bool"},
+        {"index":2,"name":"movablepark", "description":"是否处于动态停靠中", "type":"bool"},
+        {"index":3,"name":"recognition", "type":"是否是一个识别任务"},
+        {"index":4,"name":"mapfcore_active", "type":"bool"},
+        {"index":5,"name":"under_control", "type":"bool"},
+        {"index":6,"name":"agv_task_state", "type":"double"},
+        {"index":7,"name":"order_state", "type":"double"}
+      ]   
+    },
+    "task details":{
+      "type":"task details",
+      "vehicle": true,
+      "GM": true,
+      "content":[
+        {"index":0,"name":"thistype", "type":"double"},
+        {"index":1,"name":"agv_task_state", "type":"double"},
+        {"index":2,"name":"mapfcore_running", "description":"是否正在控车", "type":"bool"},
+        {"index":3,"name":"in_flublock_list", "description":"因 fluent 而停下的机器人", "type":"double"},
+        {"index":4,"name":"unlimited","description":"是否不做任何引导进行搜索",  "type":"bool"},
+        {"index":5,"name":"atq", "type":"double"},
+        {"index":6,"name":"atm", "type":"double"},
+        {"index":7,"name":"out_path_size", "description":"将要发布的路径", "type":"double"},
+        {"index":8,"name":"exe_path_size", "description":"已经下发的路径","type":"double"},
+        {"index":9,"name":"friends_size", "description":"当前能感知到的周围的 AGV 数","type":"double"},
+        {"index":10,"name":"slp", "description":"没有持续下发路线的周期","type":"double"}
+      ]   
+    },
+    "A* Plan":{
+      "type":"A* Plan",
+      "vehicle": true,
+      "GM": true,
+      "content":[
+        {"index":0,"name":"bst_size", "type":"double"},
+        {"index":1,"name":"bst_cost", "type":"double"},
+        {"index":2,"name":"path", "type":"str"}
+      ]   
+    },
     "suspendState":{
       "type":"suspendState",
       "vehicle": true,

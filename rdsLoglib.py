@@ -216,10 +216,23 @@ class Data:
         self.short_regx = "["+self.type
         self.info = info['content']
         self.has_vehicle = info.get("vehicle", True)
-        if self.has_vehicle:
-            self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*)\]".format(self.type))
+        self.has_MAPFSolver = info.get("MAPFSolver", False)
+        self.has_GM = info.get("GM", False)
+        if self.has_GM:
+            if self.has_vehicle:
+                self.short_regx = "|"+self.type+"|"
+                self.regex = re.compile("\[(.*?)\].*\[GM\]\[(.*?)\|{}\|(.*)\]".format(self.type))
+            else:
+                self.short_regx = "[GM]["+self.type
+                self.regex = re.compile("\[(.*?)\].*\[GM\]\[{}\|(.*)\]".format(self.type))  
+        elif self.has_MAPFSolver:
+            self.short_regx = "[GM][MAPFSolver|"+self.type
+            self.regex = re.compile("\[(.*?)\].*\[GM\]\[MAPFSolver\|{}\|(.*)\]".format(self.type))
         else:
-            self.regex = re.compile("\[(.*?)\].*\[{}\]\[(.*)\]".format(self.type))
+            if self.has_vehicle:
+                self.regex = re.compile("\[(.*?)\].*\[(.*?)\]\[{}\|(.*)\]".format(self.type))
+            else:
+                self.regex = re.compile("\[(.*?)\].*\[{}\]\[(.*)\]".format(self.type))
         self.data = dict()
         self.description = dict()
         self.unit = dict()
@@ -284,9 +297,15 @@ class Data:
             data.append(values[ind])
     def parse(self, line, num):
         if self.short_regx in line:
+            # if self.has_GM:
+            #     if self.has_vehicle:
+            #         print(line)
             out = self.regex.match(line)
             if out:
                 datas = out.groups()
+                # if self.has_GM:
+                #     if self.has_vehicle:
+                #         print(line, datas)
                 if self.has_vehicle:
                     # 有机器人标签
                     robot = datas[1]
@@ -330,6 +349,8 @@ class Data:
                     values = datas[1].split('|')
                     self.data[robot]['t'].append(rbktimetodate(datas[0]))
                     self.data[robot]['_lm_'].append(num)
+                    if self.type == "solve_completely":
+                        print(values)
                     for tmp in self.info:
                         if 'type' in tmp and 'index' in tmp and 'name' in tmp:
                             tmp_type = type(tmp['name'])
@@ -354,6 +375,8 @@ class Data:
                             if not self.parse_error:
                                 logging.error("Error in {} {} ".format(self.type, tmp.keys()))
                                 self.parse_error = True
+                        if self.type == "solve_completely":
+                            print(self.data[robot])
                 return True
             return False
         return False

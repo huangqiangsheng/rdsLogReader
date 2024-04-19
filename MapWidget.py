@@ -703,11 +703,19 @@ class DrawPath(QtWidgets.QWidget):
         self.spacer_input = QtWidgets.QFormLayout()
         self.spacer_input.addRow(self.spacer_label,self.spacer_edit)
         self.spacer_edit.setPlaceholderText("-")
+
+        self.c_msg = QtWidgets.QLabel("color:")
+        self.c = QtWidgets.QComboBox(self)
+        self.c.addItems(["b", "g", "r", "c", "m", "y"])
+        hbox2 = QtWidgets.QFormLayout()
+        hbox2.addRow(self.c_msg, self.c)
+
         self.btn = QtWidgets.QPushButton("Yes")
         self.btn.clicked.connect(self.getData)
         vbox = QtWidgets.QVBoxLayout(self)
         vbox.addLayout(self.path_input)
         vbox.addLayout(self.spacer_input)
+        vbox.addLayout(hbox2)
         vbox.addWidget(self.btn)
         self.setWindowTitle("Path Input")
 
@@ -717,13 +725,13 @@ class DrawPath(QtWidgets.QWidget):
         try:
             path_txt = self.path_edit.text()
             spacer_txt = self.spacer_edit.text()
-            print("path", path_txt, spacer_txt)
+            print("path", path_txt, spacer_txt, self.c.currentText())
             if path_txt == "":
                 return
             if spacer_txt == "":
                 spacer_txt = self.spacer_edit.placeholderText()
             paths = path_txt.split(spacer_txt)
-            self.getdata.emit(paths)
+            self.getdata.emit([paths, self.c.currentText()])
             self.hide()
         except Exception as err:
             print("err",err.args)
@@ -1047,16 +1055,17 @@ class MapWidget(QtWidgets.QWidget):
             print(err.args)
     def getPathData(self, event):
         try:
-            for i in range(len(event)):
+            paths = event[0]
+            for i in range(len(paths)):
                 if i == 0:
                     continue
-                k = event[i-1] + '-' + event[i]
+                k = paths[i-1] + '-' + paths[i]
                 in_map = False
                 for area_name in self.read_map.map_data:
                     map_data = self.read_map.map_data[area_name]
                     if k not in map_data.lines:
                         continue
-                    path = Polygon(map_data.lines[k].points, closed=False, facecolor='none', edgecolor='red', lw=5)
+                    path = Polygon(map_data.lines[k].points, closed=False, facecolor='none', edgecolor=event[1], lw=5)
                     in_map = True
                     id = str(int(round(time.time()*1000)))
                     if (id not in self.lineLists or self.lineLists[id] == None):
