@@ -8,7 +8,7 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.figure import Figure
 import matplotlib.lines as lines
 import matplotlib.text as mtext
-from matplotlib.patches import Circle, Polygon
+from matplotlib.patches import Circle, Polygon, Wedge
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
@@ -736,7 +736,67 @@ class DrawPath(QtWidgets.QWidget):
         except Exception as err:
             print("err",err.args)
             pass
+class RotateCollisionWidget(QtWidgets.QWidget):
+    getdata = pyqtSignal('PyQt_PyObject')
+    def __init__(self, parent = None):
+        super(QtWidgets.QWidget, self).__init__(parent)
+        self.log_label = QtWidgets.QLabel('log')
+        self.log_edit = QtWidgets.QLineEdit()
+        self.log_input = QtWidgets.QFormLayout()
+        self.log_input.addRow(self.log_label,self.log_edit)
+        self.log_edit.setPlaceholderText("[240804 081006.993][2,539,402,579][D][d] CheckRotateCollision4||vertices_size: 4||Polygon|(-63.933814,-52.592231)(-62.804836,-52.585271)(-62.793955,-54.350237)(-63.922934,-54.357197)|ClockwiseSectors||(center: (-62.585000,-51.326000), bound1: (-1.148000,-0.564500), bound2: (1.143206,0.574147))|(center: (-62.585000,-51.326000), bound1: (-1.148000,0.564500), bound2: (1.152713,-0.554813))|(center: (-62.585000,-51.326000), bound1: (0.617000,0.564500), bound2: (-0.612225,-0.569676))|(center: (-62.585000,-51.326000), bound1: (0.617000,-0.564500), bound2: (-0.621732,0.559284))|CollisionSector|(center: (-62.585000,-51.326000), bound1: (-1.148000,-0.564500), bound2: (1.143206,0.574147))|CounterclockwiseSectors||(center: (-62.585000,-51.326000), bound1: (1.143206,0.574147), bound2: (-1.148000,-0.564500))|(center: (-62.585000,-51.326000), bound1: (1.152713,-0.554813), bound2: (-1.148000,0.564500))|(center: (-62.585000,-51.326000), bound1: (-0.612225,-0.569676), bound2: (0.617000,0.564500))|(center: (-62.585000,-51.326000), bound1: (-0.621732,0.559284), bound2: (0.617000,-0.564500))")
+        self.btn = QtWidgets.QPushButton("Yes")
+        self.btn.clicked.connect(self.getData)
+        vbox = QtWidgets.QVBoxLayout(self)
+        vbox.addLayout(self.log_input)
+        vbox.addWidget(self.btn)
+        self.setWindowTitle("RotateCollision Input")
+    def getData(self):
+        try:
+            rotate_collision_txt = self.log_edit.text()
+            if rotate_collision_txt == "":
+                rotate_collision_txt = self.log_edit.placeholderText()
+            print("rotate_collision", rotate_collision_txt)
+            if rotate_collision_txt == "":
+                return
+            # parse polygon
+            polygon_regex = re.compile(".*\|Polygon\|(.*)\|(Clockwise|CounterClock).*")
+            polygon_out = polygon_regex.match(rotate_collision_txt)[1]
+            polygon_out = polygon_out.replace(')', '|').replace('(', '')
+            vertices_strs = polygon_out.split('|')
+            vertices = []
+            for vertex_str in vertices_strs:
+                if not vertex_str:
+                    continue
+                x, y = vertex_str.split(',')
+                vertices.append((float(x), float(y)))
 
+            print("vertices: ", vertices)
+
+            # sectors
+            sector_regex = re.compile(".*(Clockwise|CounterClockwise)Sectors\|\|(.*)$")
+            sectors = sector_regex.match(rotate_collision_txt)
+            sectors_strs = sectors[2].split('|')
+            sectors = []
+            for sector_str in sectors_strs:
+                # sector_str has format: (center: (-62.585000,-51.326000), bound1: (-1.148000,-0.564500), bound2: (1.143206,0.574147))
+                if sector_str in ['', 'CounterclockwiseSectors', 'ClockwiseSectors', 'CollisionSector']:
+                    continue
+                # remove first ( and last )
+                sector_str = sector_str[1:-1]
+                sector_str = sector_str.replace('center: ','').replace(', bound1: ', '|').replace(', bound2: ', '|')
+                center, bound1, bound2 = sector_str.split('|')
+
+                center_x, center_y = center[1:-1].split(',')
+                bound1_x, bound1_y = bound1[1:-1].split(',')
+                bound2_x, bound2_y = bound2[1:-1].split(',')
+                sectors.append((float(center_x), float(center_y), float(bound1_x), float(bound1_y), float(bound2_x), float(bound2_y)))
+            print("sectors: ", sectors)
+            self.hide()
+            self.getdata.emit([vertices, sectors])
+        except Exception as err:
+            print(err.args)
+            pass
 class LineWidget(QtWidgets.QWidget):
     getdata = pyqtSignal('PyQt_PyObject')
     def __init__(self, parent = None):
@@ -874,6 +934,8 @@ class MapWidget(QtWidgets.QWidget):
         self.draw_curve.triggered.connect(self.addCurve)
         self.draw_colliShape = QtWidgets.QAction("ColliShape", self.userToolbar)
         self.draw_colliShape.triggered.connect(self.addCollisionShape)
+        self.draw_rotateCollision = QtWidgets.QAction("RotateCollision", self.userToolbar)
+        self.draw_rotateCollision.triggered.connect(self.addRotateCollision)
         self.draw_goodsShape = QtWidgets.QAction("GoodsShape", self.userToolbar)
         self.draw_goodsShape.triggered.connect(self.addGoodsShape)
         self.draw_path = QtWidgets.QAction("Path", self.userToolbar)
@@ -890,7 +952,7 @@ class MapWidget(QtWidgets.QWidget):
 
         self.userToolbar.addActions([self.autoMap, self.smap_action])
         self.userToolbar.addSeparator()
-        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, 
+        self.userToolbar.addActions([self.draw_point, self.draw_line, self.draw_curve, self.draw_colliShape, self.draw_rotateCollision,
                                      self.draw_goodsShape, self.draw_path, self.draw_clear])
         self.userToolbar.addSeparator()
         self.userToolbar.addActions([self.find_robot_bar,self.find_element_bar])        
@@ -918,6 +980,11 @@ class MapWidget(QtWidgets.QWidget):
         self.getColliShape.getdata.connect(self.getCollisionShapeData)
         self.getColliShape.hide()
         self.getColliShape.setWindowFlags(Qt.Window)
+
+        self.getRotateCollision = RotateCollisionWidget(self)
+        self.getRotateCollision.getdata.connect(self.getRotateCollisionData)
+        self.getRotateCollision.hide()
+        self.getRotateCollision.setWindowFlags(Qt.Window)
 
         self.getGoodsShape = GoodsShapeWidget(self)
         self.getGoodsShape.getdata.connect(self.getGoodsShapeData)
@@ -989,9 +1056,12 @@ class MapWidget(QtWidgets.QWidget):
     def addCollisionShape(self):
         self.getColliShape.show()
 
+    def addRotateCollision(self):
+        self.getRotateCollision.show()
+
     def addGoodsShape(self):
         self.getGoodsShape.show()
-        
+
     def drawPath(self):
         self.getPath.show()
 
@@ -1039,6 +1109,22 @@ class MapWidget(QtWidgets.QWidget):
             self.lineLists[id2] = l2
             self.ax.add_line(self.lineLists[id2])
             self.static_canvas.figure.canvas.draw()
+    def getRotateCollisionData(self, event):
+        polygon = Polygon(event[0], closed=True, facecolor='none', edgecolor='r', lw=5)
+        self.ax.add_patch(polygon)
+        sectors=  event[1]
+        for sector in sectors:
+            center_x = sector[0]
+            center_y = sector[1]
+            bound1_x = sector[2]
+            bound1_y = sector[3]
+            bound2_x = sector[4]
+            bound2_y = sector[5]
+            radius = np.linalg.norm(np.array([bound1_x, bound1_y]))
+            start_angle_degree = np.angle(bound1_x + bound1_y * 1j, deg=True)
+            end_angle_degree = np.angle(bound2_x + bound2_y * 1j, deg=True)
+            sector = Wedge((center_x, center_y), radius, start_angle_degree, end_angle_degree, facecolor='none', edgecolor='b', lw=5)
+            self.ax.add_patch(sector)
 
     def getGoodsShapeData(self, event):
         try:
