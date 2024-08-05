@@ -8,7 +8,7 @@ from matplotlib.backends.backend_qt5agg import (
 from matplotlib.figure import Figure
 import matplotlib.lines as lines
 import matplotlib.text as mtext
-from matplotlib.patches import Circle, Polygon, Wedge
+from matplotlib.patches import Circle, Polygon, Wedge, Arc
 from PyQt5 import QtGui, QtCore,QtWidgets
 from PyQt5.QtCore import *
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
@@ -774,7 +774,7 @@ class RotateCollisionWidget(QtWidgets.QWidget):
             print("vertices: ", vertices)
 
             # sectors
-            sector_regex = re.compile(".*(Clockwise|CounterClockwise)Sectors\|\|(.*)$")
+            sector_regex = re.compile(".*(Clockwise|CounterClockwise)Sectors\|\|(.*)\|CollisionSector.*")
             sectors = sector_regex.match(rotate_collision_txt)
             sectors_strs = sectors[2].split('|')
             sectors = []
@@ -792,8 +792,20 @@ class RotateCollisionWidget(QtWidgets.QWidget):
                 bound2_x, bound2_y = bound2[1:-1].split(',')
                 sectors.append((float(center_x), float(center_y), float(bound1_x), float(bound1_y), float(bound2_x), float(bound2_y)))
             print("sectors: ", sectors)
+
+            # collision sector
+            collision_sector_regex = re.compile(".*CollisionSector\|(.*)")
+            collision_sector_str = collision_sector_regex.match(rotate_collision_txt)[1].split('|')[0]
+            collision_sector_str = collision_sector_str[1:-1].replace('center: ','').replace(', bound1: ', '|').replace(', bound2: ', '|')
+            center, bound1, bound2 = collision_sector_str.split('|')
+            center_x, center_y = center[1:-1].split(',')
+            bound1_x, bound1_y = bound1[1:-1].split(',')
+            bound2_x, bound2_y = bound2[1:-1].split(',')
+            collision_sector=((float(center_x), float(center_y), float(bound1_x), float(bound1_y), float(bound2_x), float(bound2_y)))
+            print("collision_sector: ", collision_sector)
+
             self.hide()
-            self.getdata.emit([vertices, sectors])
+            self.getdata.emit([vertices, sectors, [collision_sector]])
         except Exception as err:
             print(err.args)
             pass
@@ -1123,9 +1135,23 @@ class MapWidget(QtWidgets.QWidget):
             radius = np.linalg.norm(np.array([bound1_x, bound1_y]))
             start_angle_degree = np.angle(bound1_x + bound1_y * 1j, deg=True)
             end_angle_degree = np.angle(bound2_x + bound2_y * 1j, deg=True)
-            sector = Wedge((center_x, center_y), radius, start_angle_degree, end_angle_degree, facecolor='none', edgecolor='b', lw=5)
+            sector = Wedge((center_x, center_y), radius, start_angle_degree, end_angle_degree, facecolor='b', edgecolor='b', lw=3)
             self.ax.add_patch(sector)
-
+            # arc = Arc((center_x, center_y), 2*radius, 2*radius, angle=0, theta1=start_angle_degree, theta2=end_angle_degree, color='y', lw=1)
+            # self.ax.add_patch(arc)
+        collision_sectors = event[2]
+        for collision_sector in collision_sectors:
+            center_x = collision_sector[0]
+            center_y = collision_sector[1]
+            bound1_x = collision_sector[2]
+            bound1_y = collision_sector[3]
+            bound2_x = collision_sector[4]
+            bound2_y = collision_sector[5]
+            radius = np.linalg.norm(np.array([bound1_x, bound1_y]))
+            start_angle_degree = np.angle(bound1_x + bound1_y * 1j, deg=True)
+            end_angle_degree = np.angle(bound2_x + bound2_y * 1j, deg=True)
+            sector = Wedge((center_x, center_y), radius, start_angle_degree, end_angle_degree, facecolor='r', edgecolor='r', lw=3)
+            self.ax.add_patch(sector)
     def getGoodsShapeData(self, event):
         try:
             l1 = lines.Line2D([],[], linestyle = '--', color='r')
