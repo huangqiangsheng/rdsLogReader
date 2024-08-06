@@ -760,7 +760,7 @@ class RotateCollisionWidget(QtWidgets.QWidget):
             if rotate_collision_txt == "":
                 return
             # parse polygon
-            polygon_regex = re.compile(".*\|Polygon\|(.*)\|(Clockwise|CounterClock).*")
+            polygon_regex = re.compile(".*\|Polygon\|(.*)\|(Clockwise|Counterclock).*")
             polygon_out = polygon_regex.match(rotate_collision_txt)[1]
             polygon_out = polygon_out.replace(')', '|').replace('(', '')
             vertices_strs = polygon_out.split('|')
@@ -774,7 +774,7 @@ class RotateCollisionWidget(QtWidgets.QWidget):
             print("vertices: ", vertices)
 
             # sectors
-            sector_regex = re.compile(".*(Clockwise|CounterClockwise)Sectors\|\|(.*)\|CollisionSector.*")
+            sector_regex = re.compile(".*(Clockwise|Counterclockwise)Sectors\|\|(.*)\|CollisionSector.*")
             sectors = sector_regex.match(rotate_collision_txt)
             sectors_strs = sectors[2].split('|')
             sectors = []
