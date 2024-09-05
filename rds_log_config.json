@@ -290,6 +290,13 @@
         {"index":7, "name":"msg","description":"报错信息", "type":"str"}
       ]        
     },
+    "MAPFInstance":{
+      "type":"MAPFInstance",
+      "vehicle":false,
+      "content":[
+        {"index":0, "name":"instance", "description":"mapf运行实例", "type":"json" }
+      ]
+    },
     "deleteO":{
       "type":"deleteO",
       "vehicle": false,

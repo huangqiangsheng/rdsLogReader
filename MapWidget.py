@@ -768,6 +768,8 @@ class RotateCollisionWidget(QtWidgets.QWidget):
             for vertex_str in vertices_strs:
                 if not vertex_str:
                     continue
+                if vertex_str in ['ClockwiseSectors', 'CounterclockwiseSectors', 'CollisionSector']:
+                    break
                 x, y = vertex_str.split(',')
                 vertices.append((float(x), float(y)))
 
