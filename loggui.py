@@ -1,4 +1,6 @@
 import matplotlib
+
+from SqliteView import SqliteView
 matplotlib.use('Qt5Agg')
 matplotlib.rcParams['font.sans-serif']=['FangSong']
 matplotlib.rcParams['axes.unicode_minus'] = False
@@ -132,6 +134,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.data_action.setChecked(True)
         self.data_action.triggered.connect(self.openDataView)
         self.tools_menu.addAction(self.data_action)
+        
+        self.param_action = QtWidgets.QAction('&Open Param', self.tools_menu, checkable = True)
+        self.param_action.setShortcut(QtCore.Qt.CTRL + QtCore.Qt.Key_P)
+        self.param_action.triggered.connect(self.openParamView)
+        self.tools_menu.addAction(self.param_action)
 
         self.help_menu = QtWidgets.QMenu('&Help', self)
         self.help_menu.addAction('&About', self.about)
@@ -240,6 +247,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.map_widget.setWindowIcon(QtGui.QIcon('rds.ico'))
         self.map_widget.hiddened.connect(self.mapClosed)
         self.map_widget.keyPressEvent = self.keyPressEvent
+
+        self.param_widget = None
+
 
     def static_canvas_resizeEvent(self, event):
         self.static_canvas_ORG_resizeEvent(event)
@@ -447,7 +457,14 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def updateDataViews(self):
         for d in self.dataViews:
             self.updateDataView(d)
-
+    def updateParam(self):
+        if not self.filenames:
+            return
+        dir_name, _ = os.path.split(self.filenames[0])
+        pdir_name, _ = os.path.split(dir_name)
+        param_dir = os.path.join(pdir_name,"params")
+        param_file_name = os.path.join(param_dir, "robot.param")
+        self.param_widget.fileOpenStartup(param_file_name)
     def updateMap(self):
         if self.mid_line_t is None:
             return
@@ -858,6 +875,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             self.openViewer(self.view_action.isChecked())
             self.openJsonView(self.json_action.isChecked())
             self.openDataView(self.data_action.isChecked())
+            self.openParamView(self.param_action.isChecked())
             self.updateMap()
 
 
@@ -1216,7 +1234,15 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         else:
             if self.sts_widget:
                 self.sts_widget.hide()           
-
+    def openParamView(self, checked):
+        if checked:
+            if not self.param_widget:
+                self.param_widget = SqliteView("")
+                self.updateParam()
+                self.param_widget.show()
+        else:
+            if self.param_widget:
+                self.param_widget.hide()
     def updateMapSelectLine(self):
         update_line = False
         for ln in self.map_select_lines:
@@ -1245,6 +1271,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         self.in_close = True
         self.map_widget.close()
+        self.param_widget.close()
         if self.log_widget:
             self.log_widget.close()
         if self.sts_widget:
