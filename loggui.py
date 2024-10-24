@@ -1,3 +1,4 @@
+from math import floor
 import matplotlib
 
 from SqliteView import SqliteView
@@ -356,7 +357,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 idx = self.read_thread.reader.lines_num
             if idx < 0:
                 idx = 0
-            self.log_widget.setLineNum(idx)
+            self.log_widget.setLineNum(floor(idx))
 
     def updateJsonView(self):
         if self.sts_widget:
@@ -1271,7 +1272,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         self.in_close = True
         self.map_widget.close()
-        self.param_widget.close()
+        if self.param_widget:
+            self.param_widget.close()
         if self.log_widget:
             self.log_widget.close()
         if self.sts_widget:
